@@ -1,1 +1,19 @@
 /* You can add global styles to this file, and also import other style files */
+:root {
+  --color-primary: #0D9995;
+  --color-primary-hover: #087875;
+  --color-accent: #8BC83F;
+  --color-text: #17232F;
+  --color-background: #F7FAFA;
+  --color-surface: #FFFFFF;
+  --color-border: #D9E2E5;
+}
+
+.button {
+  background: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.button:hover {
+  background: var(--color-primary-hover);
+}
