@@ -1,0 +1,59 @@
+services:
+  mongodb:
+    image: mongo:7
+    container_name: libreqr-mongo
+    restart: unless-stopped
+    command: ["--auth"]
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
+      # Usuario de aplicación que el init-script crea (idempotente) con rol readWrite.
+      MONGO_USER: ${MONGO_USER}
+      MONGO_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_DB: ${MONGO_DB}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+      - ./backend/src/main/resources/mongo/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # Usuario root del arranque para comprobar que MongoDB responde.
+      test: ["CMD", "mongosh", "--quiet", "--eval",
+             "db.adminCommand({ ping: 1 }).ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - libreqr-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: libreqr-back
+    restart: "no"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    environment:
+      MONGO_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/${MONGO_DB}?authSource=${MONGO_DB}
+    ports:
+      - "${SERVER_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - libreqr-net
+
+# Volumen persistente: la base de datos sobrevive a `docker compose down`
+# (solo se pierde con `docker compose down -v`).
+volumes:
+  mongo-data:
+
+networks:
+  libreqr-net:
+    driver: bridge

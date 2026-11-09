@@ -1,0 +1,32 @@
+spring:
+  application:
+    name: libreqr-back
+
+  # --- Conexión a MongoDB (solo la conexión; sin consultas ni mapeo por ahora) ---
+  # En Spring Boot 4.x la configuración de conexión usa el prefijo `spring.mongodb.*`
+  # (el antiguo `spring.data.mongodb.*` está deprecado). Se usa la URI como fuente única
+  # de verdad (no se permite combinarla con host/port). En local por defecto apunta a
+  # localhost; en Compose se sobreescribe con MONGO_URI (ver docker-compose.yml).
+  mongodb:
+    uri: ${MONGO_URI:mongodb://localhost:27017/libreqr}
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    org.mongodb.driver: INFO
+    org.springframework.data.mongodb: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: when-authorized
+      # El backend solo queda "listo" si el inicializador pudo conectar y verificar
+      # las colecciones al arrancar (ver MongoCollectionInitializer).
+      probes:
+        enabled: true
