@@ -2,13 +2,14 @@ spring:
   application:
     name: libreqr-back
 
-  # --- Conexión a MongoDB (solo la conexión; sin consultas ni mapeo por ahora) ---
-  # En Spring Boot 4.x la configuración de conexión usa el prefijo `spring.mongodb.*`
-  # (el antiguo `spring.data.mongodb.*` está deprecado). Se usa la URI como fuente única
-  # de verdad (no se permite combinarla con host/port). En local por defecto apunta a
-  # localhost; en Compose se sobreescribe con MONGO_URI (ver docker-compose.yml).
+  # --- Conexion a MongoDB (solo la conexion; sin consultas ni mapeo por ahora) ---
+  # Spring Boot 4.x usa el prefijo `spring.mongodb.*` (el antiguo `spring.data.mongodb.*`
+  # esta deprecado). La URI es la fuente unica de verdad; en Compose se sobreescribe
+  # con MONGO_URI. `representation.uuid` es requerido para persistir campos UUID.
   mongodb:
     uri: ${MONGO_URI:mongodb://localhost:27017/libreqr}
+    representation:
+      uuid: standard
 
 server:
   port: ${SERVER_PORT:8080}
