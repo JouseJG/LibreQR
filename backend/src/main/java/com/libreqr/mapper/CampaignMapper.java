@@ -15,6 +15,7 @@ public class CampaignMapper {
                 campaign.getId(),
                 campaign.getName(),
                 campaign.getDescription(),
+                campaign.getStatus(),
                 campaign.getCreatedAt(),
                 campaign.getUpdatedAt());
     }

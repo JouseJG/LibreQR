@@ -1,5 +1,7 @@
 package com.libreqr.dto;
 
+import com.libreqr.document.CampaignStatus;
+
 import java.time.Instant;
 import java.util.UUID;
 
@@ -10,6 +12,7 @@ public record CampaignResponse(
         UUID id,
         String name,
         String description,
+        CampaignStatus status,
         Instant createdAt,
         Instant updatedAt
 ) {

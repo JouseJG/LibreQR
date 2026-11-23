@@ -17,6 +17,7 @@ import java.util.UUID;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -155,5 +156,84 @@ class CampaignApiIT {
         mockMvc.perform(get("/api/campaigns/" + campaignId)
                         .header("X-User-Id", UUID.randomUUID()))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @Order(10)
+    void buscaPorNombreODescripcion() throws Exception {
+        String tag = UUID.randomUUID().toString().substring(0, 8);
+        mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Buscable %s","description":"detalles %s"}"""
+                                .formatted(tag, tag)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/campaigns").header("X-User-Id", OWNER)
+                        .param("search", "buscable " + tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Buscable " + tag));
+
+        mockMvc.perform(get("/api/campaigns").header("X-User-Id", OWNER)
+                        .param("search", "DETALLES " + tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        mockMvc.perform(get("/api/campaigns").header("X-User-Id", OWNER)
+                        .param("search", "noexiste-" + tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    @Order(11)
+    void cambiaYFiltraPorEstado() throws Exception {
+        String tag = UUID.randomUUID().toString().substring(0, 8);
+        String body = mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Estadillo %s"}""".formatted(tag)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("active"))
+                .andReturn().getResponse().getContentAsString();
+        String id = JsonPath.read(body, "$.id");
+
+        mockMvc.perform(patch("/api/campaigns/" + id + "/status")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"paused"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("paused"));
+
+        mockMvc.perform(get("/api/campaigns").header("X-User-Id", OWNER)
+                        .param("status", "paused").param("search", tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        mockMvc.perform(get("/api/campaigns").header("X-User-Id", OWNER)
+                        .param("status", "active").param("search", tag))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        // la edicion (PUT) no toca el estado
+        mockMvc.perform(put("/api/campaigns/" + id)
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Estadillo %s v2"}""".formatted(tag)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("paused"));
+
+        mockMvc.perform(patch("/api/campaigns/" + id + "/status")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"finished"}"""))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("finished"));
     }
 }

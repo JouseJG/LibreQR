@@ -19,6 +19,8 @@ public interface CampaignQrRepository extends MongoRepository<CampaignQr, String
 
     List<CampaignQr> findByQrCodeId(UUID qrCodeId);
 
+    List<CampaignQr> findByCampaignIdIn(List<UUID> campaignIds);
+
     boolean existsByCampaignIdAndQrCodeId(UUID campaignId, UUID qrCodeId);
 
     void deleteByCampaignIdAndQrCodeId(UUID campaignId, UUID qrCodeId);

@@ -1,5 +1,6 @@
 package com.libreqr;
 
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -129,5 +130,87 @@ class QrApiIT {
         mockMvc.perform(get("/api/qr/" + qrId)
                         .header("X-User-Id", UUID.randomUUID()))
                 .andExpect(status().isNotFound());
+    }
+
+    // --- Filtros de busqueda/estado y conteo por lotes ---
+
+    private static final String TAG = UUID.randomUUID().toString().substring(0, 8);
+    private static String filtrableId;
+
+    @Test
+    @Order(8)
+    void crearQrFiltrable() throws Exception {
+        MvcResult res = mockMvc.perform(post("/api/qr")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"url","name":"Buscable %s",\
+                                "description":"unicorno-%s","payload":"https://libreqr.example"}"""
+                                .formatted(TAG, TAG)))
+                .andExpect(status().isCreated())
+                .andReturn();
+        filtrableId = JsonPath.read(res.getResponse().getContentAsString(), "$.id");
+    }
+
+    @Test
+    @Order(9)
+    void buscaPorNombreYDescripcion() throws Exception {
+        mockMvc.perform(get("/api/qr").header("X-User-Id", OWNER)
+                        .param("search", "buscable " + TAG))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(filtrableId));
+
+        mockMvc.perform(get("/api/qr").header("X-User-Id", OWNER)
+                        .param("search", "UNICORNO-" + TAG))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        mockMvc.perform(get("/api/qr").header("X-User-Id", OWNER)
+                        .param("search", "noexiste-" + TAG))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    @Order(10)
+    void filtraPorEstado() throws Exception {
+        mockMvc.perform(get("/api/qr").header("X-User-Id", OWNER)
+                        .param("status", "active").param("search", TAG))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1));
+
+        mockMvc.perform(get("/api/qr").header("X-User-Id", OWNER)
+                        .param("status", "inactive").param("search", TAG))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0));
+    }
+
+    @Test
+    @Order(11)
+    void cuentaEscaneosPorLotes() throws Exception {
+        mockMvc.perform(post("/api/qr/scan-counts")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ids":["%s","%s"]}""".formatted(filtrableId, UUID.randomUUID())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.['" + filtrableId + "']").value(0));
+
+        // Ids ajenos no se devuelven (el frontend mostrara 0 igualmente).
+        mockMvc.perform(post("/api/qr/scan-counts")
+                        .header("X-User-Id", UUID.randomUUID().toString())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ids":["%s"]}""".formatted(filtrableId)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isEmpty());
+
+        mockMvc.perform(post("/api/qr/scan-counts")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"ids":[]}"""))
+                .andExpect(status().isBadRequest());
     }
 }

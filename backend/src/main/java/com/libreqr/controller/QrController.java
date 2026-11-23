@@ -1,7 +1,10 @@
 package com.libreqr.controller;
 
+import com.libreqr.document.QrStatus;
 import com.libreqr.dto.QrResponse;
 import com.libreqr.dto.QrUpsertRequest;
+import com.libreqr.security.AuthenticatedUser;
+import com.libreqr.security.CurrentUser;
 import com.libreqr.service.QrService;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
@@ -17,8 +20,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
@@ -26,11 +29,8 @@ import java.net.URI;
 import java.util.UUID;
 
 /**
- * API REST de QRs.
- *
- * <p>El {@code ownerId} se pasa por header {@code X-User-Id} de forma provisional: es un
- * sustituto de la autenticacion real (Fase 2), donde se obtendra del token y se verificara
- * igualmente en el backend.</p>
+ * API REST de QRs. La identidad la fija {@link CurrentUser} (cookie de sesion o Bearer
+ * key); el cliente ya no manda el ownerId.
  */
 @RestController
 @RequestMapping("/api/qr")
@@ -44,9 +44,9 @@ public class QrController {
 
     @PostMapping
     public ResponseEntity<QrResponse> create(
-            @RequestHeader("X-User-Id") UUID ownerId,
+            @CurrentUser AuthenticatedUser current,
             @Valid @RequestBody QrUpsertRequest request) {
-        QrResponse created = service.create(ownerId, request);
+        QrResponse created = service.create(current.userId(), request);
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{id}").buildAndExpand(created.id()).toUri();
         return ResponseEntity.created(location).body(created);
@@ -54,33 +54,35 @@ public class QrController {
 
     @GetMapping
     public Page<QrResponse> list(
-            @RequestHeader("X-User-Id") UUID ownerId,
+            @CurrentUser AuthenticatedUser current,
             @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
-            Pageable pageable) {
-        return service.list(ownerId, pageable);
+            Pageable pageable,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) QrStatus status) {
+        return service.list(current.userId(), pageable, search, status);
     }
 
     @GetMapping("/{id}")
-    public QrResponse get(@RequestHeader("X-User-Id") UUID ownerId, @PathVariable UUID id) {
-        return service.get(ownerId, id);
+    public QrResponse get(@CurrentUser AuthenticatedUser current, @PathVariable UUID id) {
+        return service.get(current.userId(), id);
     }
 
     @PutMapping("/{id}")
     public QrResponse update(
-            @RequestHeader("X-User-Id") UUID ownerId,
+            @CurrentUser AuthenticatedUser current,
             @PathVariable UUID id,
             @Valid @RequestBody QrUpsertRequest request) {
-        return service.update(ownerId, id, request);
+        return service.update(current.userId(), id, request);
     }
 
     @PatchMapping("/{id}/deactivate")
-    public QrResponse deactivate(@RequestHeader("X-User-Id") UUID ownerId, @PathVariable UUID id) {
-        return service.deactivate(ownerId, id);
+    public QrResponse deactivate(@CurrentUser AuthenticatedUser current, @PathVariable UUID id) {
+        return service.deactivate(current.userId(), id);
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@RequestHeader("X-User-Id") UUID ownerId, @PathVariable UUID id) {
-        service.delete(ownerId, id);
+    public ResponseEntity<Void> delete(@CurrentUser AuthenticatedUser current, @PathVariable UUID id) {
+        service.delete(current.userId(), id);
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }

@@ -7,7 +7,7 @@ spring:
   # esta deprecado). La URI es la fuente unica de verdad; en Compose se sobreescribe
   # con MONGO_URI. `representation.uuid` es requerido para persistir campos UUID.
   mongodb:
-    uri: ${MONGO_URI:mongodb://localhost:27017/libreqr}
+    uri: ${MONGO_URI:mongodb://libreqr:devlibreqrpass@localhost:27017/libreqr?authSource=libreqr}
     representation:
       uuid: standard
 

@@ -11,13 +11,19 @@ import com.libreqr.mapper.QrMapper;
 import com.libreqr.repository.QrCodeRepository;
 import com.libreqr.util.SlugGenerator;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Logica de negocio de los QRs (REQ-QR-*).
@@ -33,11 +39,14 @@ public class QrService {
     private final QrCodeRepository qrCodes;
     private final QrMapper mapper;
     private final SlugGenerator slugs;
+    private final MongoTemplate mongo;
 
-    public QrService(QrCodeRepository qrCodes, QrMapper mapper, SlugGenerator slugs) {
+    public QrService(QrCodeRepository qrCodes, QrMapper mapper, SlugGenerator slugs,
+                     MongoTemplate mongo) {
         this.qrCodes = qrCodes;
         this.mapper = mapper;
         this.slugs = slugs;
+        this.mongo = mongo;
     }
 
     public QrResponse create(UUID ownerId, QrUpsertRequest request) {
@@ -59,8 +68,31 @@ public class QrService {
         return mapper.toResponse(qrCodes.save(qr));
     }
 
-    public Page<QrResponse> list(UUID ownerId, Pageable pageable) {
-        return qrCodes.findByOwnerIdAndDeletedAtIsNull(ownerId, pageable).map(mapper::toResponse);
+    /**
+     * Listado paginado con filtros opcionales de busqueda (nombre/descripcion, sin
+     * distincion de mayusculas) y de estado. El filtrado se hace en el servidor (Mongo)
+     * para que la paginacion siga siendo coherente con los resultados.
+     */
+    public Page<QrResponse> list(UUID ownerId, Pageable pageable, String search,
+                                 QrStatus status) {
+        Criteria base = Criteria.where("ownerId").is(ownerId).and("deletedAt").isNull();
+        if (status != null) {
+            base = base.and("status").is(status);
+        }
+        if (search != null && !search.isBlank()) {
+            String quoted = Pattern.quote(search.trim());
+            base = base.andOperator(new Criteria().orOperator(
+                    Criteria.where("name").regex(quoted, "i"),
+                    Criteria.where("description").regex(quoted, "i")));
+        }
+
+        Query countQuery = new Query(base);
+        long total = mongo.count(countQuery, QrCode.class);
+
+        Query pageQuery = new Query(base).with(pageable);
+        List<QrCode> content = mongo.find(pageQuery, QrCode.class);
+        return new PageImpl<>(content.stream().map(mapper::toResponse).toList(), pageable,
+                total);
     }
 
     public QrResponse get(UUID ownerId, UUID id) {

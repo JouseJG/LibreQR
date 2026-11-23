@@ -1,17 +1,24 @@
 package com.libreqr.service;
 
 import com.libreqr.document.Campaign;
+import com.libreqr.document.CampaignStatus;
 import com.libreqr.dto.CampaignResponse;
 import com.libreqr.dto.CampaignUpsertRequest;
 import com.libreqr.exception.ResourceNotFoundException;
 import com.libreqr.mapper.CampaignMapper;
 import com.libreqr.repository.CampaignRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 /**
  * Logica de negocio de las campanas (REQ-CAM-01..05).
@@ -25,10 +32,13 @@ public class CampaignService {
 
     private final CampaignRepository campaigns;
     private final CampaignMapper mapper;
+    private final MongoTemplate mongo;
 
-    public CampaignService(CampaignRepository campaigns, CampaignMapper mapper) {
+    public CampaignService(CampaignRepository campaigns, CampaignMapper mapper,
+                           MongoTemplate mongo) {
         this.campaigns = campaigns;
         this.mapper = mapper;
+        this.mongo = mongo;
     }
 
     public CampaignResponse create(UUID ownerId, CampaignUpsertRequest request) {
@@ -38,14 +48,49 @@ public class CampaignService {
         campaign.setOwnerId(ownerId);
         campaign.setName(request.name());
         campaign.setDescription(request.description());
+        campaign.setStatus(CampaignStatus.active);
         campaign.setCreatedAt(now);
         campaign.setUpdatedAt(now);
         return mapper.toResponse(campaigns.save(campaign));
     }
 
-    public Page<CampaignResponse> list(UUID ownerId, Pageable pageable) {
-        return campaigns.findByOwnerIdAndDeletedAtIsNull(ownerId, pageable)
-                .map(mapper::toResponse);
+    /** Listado paginado con busqueda y estado opcionales. */
+    public Page<CampaignResponse> list(UUID ownerId, Pageable pageable, String search,
+                                       CampaignStatus status) {
+        Criteria base = Criteria.where("ownerId").is(ownerId).and("deletedAt").isNull();
+        List<Criteria> operators = new java.util.ArrayList<>();
+        if (status != null) {
+            if (status == CampaignStatus.active) {
+                // campanas creadas antes del campo status se consideran activas
+                operators.add(new Criteria().orOperator(
+                        Criteria.where("status").is(CampaignStatus.active),
+                        Criteria.where("status").is(null)));
+            } else {
+                base = base.and("status").is(status);
+            }
+        }
+        if (search != null && !search.isBlank()) {
+            String quoted = Pattern.quote(search.trim());
+            operators.add(new Criteria().orOperator(
+                    Criteria.where("name").regex(quoted, "i"),
+                    Criteria.where("description").regex(quoted, "i")));
+        }
+        if (!operators.isEmpty()) {
+            base = base.andOperator(operators.toArray(Criteria[]::new));
+        }
+
+        long total = mongo.count(new Query(base), Campaign.class);
+        List<Campaign> content = mongo.find(new Query(base).with(pageable), Campaign.class);
+        return new PageImpl<>(content.stream().map(mapper::toResponse).toList(), pageable,
+                total);
+    }
+
+    /** Pausar/reactivar/finalizar campana. */
+    public CampaignResponse changeStatus(UUID ownerId, UUID id, CampaignStatus status) {
+        Campaign campaign = loadOwned(ownerId, id);
+        campaign.setStatus(status);
+        campaign.setUpdatedAt(Instant.now());
+        return mapper.toResponse(campaigns.save(campaign));
     }
 
     public CampaignResponse get(UUID ownerId, UUID id) {

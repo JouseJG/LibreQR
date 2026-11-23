@@ -1,6 +1,7 @@
 package com.libreqr.document;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -21,7 +22,9 @@ public class ScanEvent {
 
     @Id
     private UUID id;
+    @Indexed
     private UUID qrCodeId;
+    @Indexed
     private Instant scannedAt;
     private String visitorHash;
     private String countryCode;

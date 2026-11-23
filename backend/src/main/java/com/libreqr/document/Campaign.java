@@ -20,6 +20,7 @@ public class Campaign {
     private UUID ownerId;
     private String name;
     private String description;
+    private CampaignStatus status;
     private Instant createdAt;
     private Instant updatedAt;
     private Instant deletedAt;
@@ -30,6 +31,14 @@ public class Campaign {
 
     public void setId(UUID id) {
         this.id = id;
+    }
+
+    public CampaignStatus getStatus() {
+        return status == null ? CampaignStatus.active : status;
+    }
+
+    public void setStatus(CampaignStatus status) {
+        this.status = status;
     }
 
     public UUID getOwnerId() {

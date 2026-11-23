@@ -28,4 +28,6 @@ public interface QrCodeRepository extends MongoRepository<QrCode, UUID> {
     QrCode findBySlugAndDeletedAtIsNull(String slug);
 
     List<QrCode> findByOwnerIdAndDeletedAtIsNull(UUID ownerId);
+
+    List<QrCode> findByIdIn(List<UUID> ids);
 }
