@@ -58,8 +58,9 @@ class MetricsApiIT {
                         .header("X-User-Id", OWNER)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                               {"type":"url","name":"%s","payload":"https://destino.example/%s"}
-                               """.formatted(name, name)))
+                               {"type":"url","name":"%s","payload":"https://destino.example/%s",\
+                                "campaignId":"%s"}
+                               """.formatted(name, name, campaignId)))
                 .andExpect(status().isCreated())
                 .andReturn();
         return JsonPath.read(res.getResponse().getContentAsString(), "$.id");
@@ -83,6 +84,19 @@ class MetricsApiIT {
         }
         mockMvc.perform(req.header("User-Agent", userAgent))
                 .andExpect(status().isFound());
+    }
+
+    @Test
+    @Order(0)
+    void prepararCampanaBase() throws Exception {
+        MvcResult camp = mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Campana metricas"}"""))
+                .andExpect(status().isCreated())
+                .andReturn();
+        campaignId = JsonPath.read(camp.getResponse().getContentAsString(), "$.id");
     }
 
     @Test
@@ -162,24 +176,9 @@ class MetricsApiIT {
     void metricasDeCampanaAgreganQrs() throws Exception {
         purge(UUID.fromString(qrId));
 
-        MvcResult camp = mockMvc.perform(post("/api/campaigns")
-                        .header("X-User-Id", OWNER)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"name":"Campana metricas"}"""))
-                .andExpect(status().isCreated())
-                .andReturn();
-        campaignId = JsonPath.read(camp.getResponse().getContentAsString(), "$.id");
-
-        mockMvc.perform(post("/api/campaigns/" + campaignId + "/qrs/" + qrId)
-                        .header("X-User-Id", OWNER))
-                .andExpect(status().isCreated());
-
+        // qrId y qr2 pertenecen a la campana base (asignacion obligatoria en la creacion)
         String qr2 = createQr("qr-campana");
         purge(UUID.fromString(qr2));
-        mockMvc.perform(post("/api/campaigns/" + campaignId + "/qrs/" + qr2)
-                        .header("X-User-Id", OWNER))
-                .andExpect(status().isCreated());
 
         // qr1 (desactivado): 1 escaneo -> 410. qr2: 1 escaneo humano.
         mockMvc.perform(get("/r/" + slug).header("User-Agent", MOBILE_UA))

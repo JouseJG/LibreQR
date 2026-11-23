@@ -21,6 +21,7 @@ public record QrResponse(
         String description,
         String slug,
         String payload,
+        UUID campaignId,
         Map<String, Object> designConfig,
         String imageUrl,
         boolean editable,

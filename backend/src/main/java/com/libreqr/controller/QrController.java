@@ -80,6 +80,11 @@ public class QrController {
         return service.deactivate(current.userId(), id);
     }
 
+    @PatchMapping("/{id}/reactivate")
+    public QrResponse reactivate(@CurrentUser AuthenticatedUser current, @PathVariable UUID id) {
+        return service.reactivate(current.userId(), id);
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> delete(@CurrentUser AuthenticatedUser current, @PathVariable UUID id) {
         service.delete(current.userId(), id);

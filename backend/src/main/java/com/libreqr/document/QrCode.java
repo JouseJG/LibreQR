@@ -27,6 +27,7 @@ public class QrCode {
     private String description;
     private String slug;
     private String payload;
+    private UUID campaignId;
     private Map<String, Object> designConfig;
     private String imageUrl;
     private Instant createdAt;
@@ -95,6 +96,14 @@ public class QrCode {
 
     public void setPayload(String payload) {
         this.payload = payload;
+    }
+
+    public UUID getCampaignId() {
+        return campaignId;
+    }
+
+    public void setCampaignId(UUID campaignId) {
+        this.campaignId = campaignId;
     }
 
     public Map<String, Object> getDesignConfig() {

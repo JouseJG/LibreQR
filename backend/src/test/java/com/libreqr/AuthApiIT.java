@@ -102,12 +102,22 @@ class AuthApiIT {
     @Order(4)
     void cookieDeSesionAutentica() throws Exception {
         String name = "ses-" + sessionCookie.substring(sessionCookie.length() - 6);
+
+        // todo QR nace en una campana: creamos una con la misma sesion
+        String campaignId = JsonPath.read(mockMvc.perform(post("/api/campaigns")
+                        .cookie(parseCookie(sessionCookie))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Campana sesion"}"""))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.id");
+
         mockMvc.perform(post("/api/qr")
                         .cookie(parseCookie(sessionCookie))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"type":"url","name":"%s","payload":"https://sesion.example"}"""
-                                .formatted(name)))
+                                {"type":"url","name":"%s","payload":"https://sesion.example",\
+                                "campaignId":"%s"}""".formatted(name, campaignId)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.slug").isNotEmpty());
     }

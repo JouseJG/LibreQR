@@ -19,6 +19,7 @@ public class QrMapper {
                 qr.getDescription(),
                 qr.getSlug(),
                 qr.getPayload(),
+                qr.getCampaignId(),
                 qr.getDesignConfig(),
                 qr.getImageUrl(),
                 qr.getType() == com.libreqr.document.QrType.url, // solo los dinamicos son editables

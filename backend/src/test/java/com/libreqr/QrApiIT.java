@@ -38,11 +38,38 @@ class QrApiIT {
 
     private static final String OWNER = UUID.randomUUID().toString();
     private static String qrId;
+    private static String campaignIdBase;
 
-    private static String body(String name, String payload) {
+    private String body(String name, String payload) {
         return """
-               {"type":"url","name":"%s","payload":"%s","designConfig":{"frame":"rounded"}}
-               """.formatted(name, payload);
+               {"type":"url","name":"%s","payload":"%s","campaignId":"%s",\
+               "designConfig":{"frame":"rounded"}}
+               """.formatted(name, payload, campaignIdBase);
+    }
+
+    @Test
+    @Order(0)
+    void crearCampanaBase() throws Exception {
+        MvcResult res = mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Campana base QRs"}"""))
+                .andExpect(status().isCreated())
+                .andReturn();
+        campaignIdBase = JsonPath.read(res.getResponse().getContentAsString(), "$.id");
+    }
+
+    @Test
+    @Order(12)
+    void rechazaQrSinCampana() throws Exception {
+        mockMvc.perform(post("/api/qr")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"url","name":"huerfano","payload":"https://x.example"}"""))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail", containsString("campaignId")));
     }
 
     @Test
@@ -145,8 +172,9 @@ class QrApiIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"type":"url","name":"Buscable %s",\
-                                "description":"unicorno-%s","payload":"https://libreqr.example"}"""
-                                .formatted(TAG, TAG)))
+                                "description":"unicorno-%s","payload":"https://libreqr.example",\
+                                "campaignId":"%s"}"""
+                                .formatted(TAG, TAG, campaignIdBase)))
                 .andExpect(status().isCreated())
                 .andReturn();
         filtrableId = JsonPath.read(res.getResponse().getContentAsString(), "$.id");
@@ -212,5 +240,51 @@ class QrApiIT {
                         .content("""
                                 {"ids":[]}"""))
                 .andExpect(status().isBadRequest());
+    }
+
+    // --- Cascado campana->QR y reactivacion ---
+
+    @Test
+    @Order(13)
+    void pausarCampanaDesactivaSusQrs() throws Exception {
+        mockMvc.perform(patch("/api/campaigns/" + campaignIdBase + "/status")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"paused"}"""))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/qr/" + filtrableId).header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("inactive"));
+    }
+
+    @Test
+    @Order(14)
+    void reactivarQrConCampanaPausadaDa409() throws Exception {
+        mockMvc.perform(patch("/api/qr/" + filtrableId + "/reactivate").header("X-User-Id", OWNER))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail", containsString("no esta activa")));
+    }
+
+    @Test
+    @Order(15)
+    void reactivarCampanaReactivaSusQrs() throws Exception {
+        // cascado simetrico: al reactivar la campana, sus QRs vuelven a active
+        mockMvc.perform(patch("/api/campaigns/" + campaignIdBase + "/status")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"active"}"""))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get("/api/qr/" + filtrableId).header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("active"));
+
+        // reactivar un QR ya activo es idempotente
+        mockMvc.perform(patch("/api/qr/" + filtrableId + "/reactivate").header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("active"));
     }
 }

@@ -1,13 +1,18 @@
 package com.libreqr.service;
 
+import com.libreqr.document.Campaign;
+import com.libreqr.document.CampaignStatus;
 import com.libreqr.document.QrCode;
 import com.libreqr.document.QrStatus;
 import com.libreqr.document.QrType;
 import com.libreqr.dto.QrResponse;
 import com.libreqr.dto.QrUpsertRequest;
+import com.libreqr.exception.ConflictException;
 import com.libreqr.exception.InvalidContentException;
 import com.libreqr.exception.ResourceNotFoundException;
 import com.libreqr.mapper.QrMapper;
+import com.libreqr.repository.CampaignQrRepository;
+import com.libreqr.repository.CampaignRepository;
 import com.libreqr.repository.QrCodeRepository;
 import com.libreqr.util.SlugGenerator;
 import org.springframework.data.domain.Page;
@@ -40,17 +45,27 @@ public class QrService {
     private final QrMapper mapper;
     private final SlugGenerator slugs;
     private final MongoTemplate mongo;
+    private final CampaignRepository campaigns;
+    private final CampaignQrRepository campaignLinks;
 
     public QrService(QrCodeRepository qrCodes, QrMapper mapper, SlugGenerator slugs,
-                     MongoTemplate mongo) {
+                     MongoTemplate mongo, CampaignRepository campaigns,
+                     CampaignQrRepository campaignLinks) {
         this.qrCodes = qrCodes;
         this.mapper = mapper;
         this.slugs = slugs;
         this.mongo = mongo;
+        this.campaigns = campaigns;
+        this.campaignLinks = campaignLinks;
     }
 
     public QrResponse create(UUID ownerId, QrUpsertRequest request) {
         validatePayload(request.type(), request.payload());
+        Campaign campaign = loadCampaign(ownerId, request.campaignId());
+        if (campaign.getStatus() != CampaignStatus.active) {
+            throw new ConflictException(
+                    "La campana no esta activa; reactiva la campana antes de crear QRs");
+        }
 
         Instant now = Instant.now();
         QrCode qr = new QrCode();
@@ -62,10 +77,19 @@ public class QrService {
         qr.setDescription(request.description());
         qr.setSlug(slugs.generate());
         qr.setPayload(request.payload());
+        qr.setCampaignId(campaign.getId());
         qr.setDesignConfig(request.designConfig());
         qr.setCreatedAt(now);
         qr.setUpdatedAt(now);
-        return mapper.toResponse(qrCodes.save(qr));
+        QrCode saved = qrCodes.save(qr);
+
+        // Espejo de la relacion (campaign_qrs) para las consultas de campana/metricas.
+        if (!campaignLinks.existsByCampaignIdAndQrCodeId(campaign.getId(), saved.getId())) {
+            campaignLinks.save(
+                    com.libreqr.document.CampaignQr.of(
+                            campaign.getId(), saved.getId(), now));
+        }
+        return mapper.toResponse(saved);
     }
 
     /**
@@ -105,15 +129,36 @@ public class QrService {
      */
     public QrResponse update(UUID ownerId, UUID id, QrUpsertRequest request) {
         validatePayload(request.type(), request.payload());
+        Campaign campaign = loadCampaign(ownerId, request.campaignId());
 
         QrCode qr = loadOwned(ownerId, id);
+        UUID previousCampaign = qr.getCampaignId();
+        if (previousCampaign != null && !previousCampaign.equals(campaign.getId())
+                && campaign.getStatus() != CampaignStatus.active) {
+            throw new ConflictException(
+                    "La campana de destino no esta activa");
+        }
+
         qr.setType(request.type());
         qr.setName(request.name());
         qr.setDescription(request.description());
         qr.setPayload(request.payload());
+        qr.setCampaignId(campaign.getId());
         qr.setDesignConfig(request.designConfig());
         qr.setUpdatedAt(Instant.now());
-        return mapper.toResponse(qrCodes.save(qr));
+        QrCode saved = qrCodes.save(qr);
+
+        if (previousCampaign != null && !previousCampaign.equals(campaign.getId())) {
+            // movemos el espejo de la relacion a la campana nueva
+            if (campaignLinks.existsByCampaignIdAndQrCodeId(previousCampaign, saved.getId())) {
+                campaignLinks.deleteByCampaignIdAndQrCodeId(previousCampaign, saved.getId());
+            }
+            if (!campaignLinks.existsByCampaignIdAndQrCodeId(campaign.getId(), saved.getId())) {
+                campaignLinks.save(com.libreqr.document.CampaignQr.of(
+                        campaign.getId(), saved.getId(), Instant.now()));
+            }
+        }
+        return mapper.toResponse(saved);
     }
 
     /** Desactivar QR: deja de redirigir pero no se elimina (REQ-QR-09). */
@@ -122,6 +167,37 @@ public class QrService {
         qr.setStatus(QrStatus.inactive);
         qr.setUpdatedAt(Instant.now());
         return mapper.toResponse(qrCodes.save(qr));
+    }
+
+    /**
+     * Reactivar QR inactivo. Si su campana esta pausada o finalizada se rechaza (409):
+     * un QR de una campana no activa no debe redirigir.
+     */
+    public QrResponse reactivate(UUID ownerId, UUID id) {
+        QrCode qr = loadOwned(ownerId, id);
+        if (qr.getStatus() == QrStatus.active) {
+            return mapper.toResponse(qr);
+        }
+        if (qr.getCampaignId() != null) {
+            Campaign campaign = campaigns.findById(qr.getCampaignId())
+                    .filter(c -> c.getOwnerId().equals(ownerId) && c.getDeletedAt() == null)
+                    .orElseThrow(() -> new ConflictException(
+                            "La campana asociada ya no existe; asigna el QR a otra campana"));
+            if (campaign.getStatus() != CampaignStatus.active) {
+                throw new ConflictException(
+                        "La campana asociada no esta activa; reactiva la campana primero");
+            }
+        }
+        qr.setStatus(QrStatus.active);
+        qr.setUpdatedAt(Instant.now());
+        return mapper.toResponse(qrCodes.save(qr));
+    }
+
+    private Campaign loadCampaign(UUID ownerId, UUID campaignId) {
+        return campaigns.findById(campaignId)
+                .filter(c -> c.getDeletedAt() == null && c.getOwnerId().equals(ownerId))
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Campana no encontrada: " + campaignId));
     }
 
     /** Eliminar QR con borrado logico (REQ-QR-10). */

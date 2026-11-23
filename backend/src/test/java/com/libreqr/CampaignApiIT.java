@@ -90,20 +90,21 @@ class CampaignApiIT {
     @Test
     @Order(5)
     void anadirYListarQrs() throws Exception {
-        // Primero creo un QR propio para asociar.
+        // Primero creo un QR propio para asociar (la campana base ya es la suya).
         MvcResult qrRes = mockMvc.perform(post("/api/qr")
                         .header("X-User-Id", OWNER)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"type":"url","name":"QR campana","payload":"https://c.example"}"""))
+                                {"type":"url","name":"QR campana","payload":"https://c.example",\
+                                "campaignId":"%s"}""".formatted(campaignId)))
                 .andExpect(status().isCreated())
                 .andReturn();
         qrId = JsonPath.read(qrRes.getResponse().getContentAsString(), "$.id");
 
+        // create ya vincula la relacion: anadir de nuevo es 409
         mockMvc.perform(post("/api/campaigns/" + campaignId + "/qrs/" + qrId)
                         .header("X-User-Id", OWNER))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.qrCodeId").value(qrId));
+                .andExpect(status().isConflict());
 
         mockMvc.perform(get("/api/campaigns/" + campaignId + "/qrs")
                         .header("X-User-Id", OWNER))
@@ -228,12 +229,46 @@ class CampaignApiIT {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("paused"));
 
-        mockMvc.perform(patch("/api/campaigns/" + id + "/status")
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .patch("/api/campaigns/" + id + "/status")
                         .header("X-User-Id", OWNER)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"status":"finished"}"""))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("finished"));
+    }
+
+    @Test
+    @Order(12)
+    void noSePuedenAsignarQrsACampanasNoActivasODuplicarCampana() throws Exception {
+        // campana pausada
+        String campB = JsonPath.read(mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name":"Pausada para asignar"}"""))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString(), "$.id");
+        mockMvc.perform(patch("/api/campaigns/" + campB + "/status")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"status":"paused"}"""))
+                .andExpect(status().isOk());
+
+        // crear un QR directamente en la campana pausada -> 409
+        mockMvc.perform(post("/api/qr")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"type":"text","name":"sin destino","payload":"hola",\
+                                "campaignId":"%s"}""".formatted(campB)))
+                .andExpect(status().isConflict());
+
+        // QR de otra campana: vincularlo a la campana pausada -> 409
+        mockMvc.perform(post("/api/campaigns/" + campB + "/qrs/" + qrId)
+                        .header("X-User-Id", OWNER))
+                .andExpect(status().isConflict());
     }
 }

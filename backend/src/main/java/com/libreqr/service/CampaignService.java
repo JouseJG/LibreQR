@@ -2,11 +2,16 @@ package com.libreqr.service;
 
 import com.libreqr.document.Campaign;
 import com.libreqr.document.CampaignStatus;
+import com.libreqr.document.CampaignQr;
+import com.libreqr.document.QrCode;
+import com.libreqr.document.QrStatus;
 import com.libreqr.dto.CampaignResponse;
 import com.libreqr.dto.CampaignUpsertRequest;
 import com.libreqr.exception.ResourceNotFoundException;
 import com.libreqr.mapper.CampaignMapper;
+import com.libreqr.repository.CampaignQrRepository;
 import com.libreqr.repository.CampaignRepository;
+import com.libreqr.repository.QrCodeRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -33,12 +38,17 @@ public class CampaignService {
     private final CampaignRepository campaigns;
     private final CampaignMapper mapper;
     private final MongoTemplate mongo;
+    private final CampaignQrRepository campaignLinks;
+    private final QrCodeRepository qrCodes;
 
     public CampaignService(CampaignRepository campaigns, CampaignMapper mapper,
-                           MongoTemplate mongo) {
+                           MongoTemplate mongo, CampaignQrRepository campaignLinks,
+                           QrCodeRepository qrCodes) {
         this.campaigns = campaigns;
         this.mapper = mapper;
         this.mongo = mongo;
+        this.campaignLinks = campaignLinks;
+        this.qrCodes = qrCodes;
     }
 
     public CampaignResponse create(UUID ownerId, CampaignUpsertRequest request) {
@@ -85,12 +95,38 @@ public class CampaignService {
                 total);
     }
 
-    /** Pausar/reactivar/finalizar campana. */
+    /**
+     * Pausar/reactivar/finalizar campana.
+     *
+     * <p>Cascado simetrico sobre los QRs vinculados (REQ-QR-09 + REQ-CAM-02): al pausar o
+     * finalizar, los QRs quedan inactivos (no deben redirigir desde una campana no activa);
+     * al reactivar la campana, los QRs vuelven a activarse.</p>
+     */
     public CampaignResponse changeStatus(UUID ownerId, UUID id, CampaignStatus status) {
         Campaign campaign = loadOwned(ownerId, id);
         campaign.setStatus(status);
         campaign.setUpdatedAt(Instant.now());
-        return mapper.toResponse(campaigns.save(campaign));
+        Campaign saved = campaigns.save(campaign);
+
+        List<UUID> qrIds = campaignLinks.findByCampaignId(id).stream()
+                .map(CampaignQr::getQrCodeId)
+                .toList();
+        if (!qrIds.isEmpty()) {
+            QrStatus target = status == CampaignStatus.active
+                    ? QrStatus.active : QrStatus.inactive;
+            Instant now = Instant.now();
+            List<QrCode> toCascade = qrCodes.findByIdIn(qrIds).stream()
+                    .filter(q -> q.getDeletedAt() == null && q.getStatus() != target)
+                    .peek(q -> {
+                        q.setStatus(target);
+                        q.setUpdatedAt(now);
+                    })
+                    .toList();
+            if (!toCascade.isEmpty()) {
+                qrCodes.saveAll(toCascade);
+            }
+        }
+        return mapper.toResponse(saved);
     }
 
     public CampaignResponse get(UUID ownerId, UUID id) {

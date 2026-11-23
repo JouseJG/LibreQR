@@ -1,6 +1,5 @@
 package com.libreqr.dto;
 
-import com.libreqr.document.QrStatus;
 import com.libreqr.document.QrType;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -11,11 +10,15 @@ import java.util.UUID;
 /**
  * Entrada para crear o editar un QR (REQ-QR-01..03, REQ-QR-06).
  *
+ * <p>Todo QR nace asignado a una campana (REQ-CAM-02): {@code campaignId} es obligatorio
+ * y la campana debe existir, ser propia y estar activa.</p>
+ *
  * @param type        tipo de QR (obligatorio)
  * @param name        nombre reconocible (obligatorio)
  * @param description descripcion opcional
  * @param payload     destino o contenido segun el tipo (obligatorio; formato validado
  *                    por el servicio segun el tipo)
+ * @param campaignId  campana a la que pertenece (obligatorio)
  * @param designConfig diseno personalizable: marco, forma, logo (opcional)
  */
 public record QrUpsertRequest(
@@ -32,6 +35,9 @@ public record QrUpsertRequest(
         @NotNull(message = "payload es obligatorio")
         @Size(min = 1, max = 4000, message = "payload debe tener entre 1 y 4000 caracteres")
         String payload,
+
+        @NotNull(message = "campaignId es obligatorio: todo QR pertenece a una campana")
+        UUID campaignId,
 
         Map<String, Object> designConfig
 ) {
