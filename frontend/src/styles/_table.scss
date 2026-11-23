@@ -1,0 +1,102 @@
+@use 'tokens' as *;
+
+@mixin data-table {
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: $radius-lg;
+  overflow: hidden;
+  box-shadow: $shadow-soft;
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    background: $color-surface-alt;
+    color: $color-text-muted;
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 800;
+    text-align: left;
+  }
+
+  th,
+  td {
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid $color-border;
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background: $color-primary-soft;
+  }
+
+  tr.row-click {
+    cursor: pointer;
+  }
+
+  .row-name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+  }
+
+  .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .table-actions {
+    text-align: right;
+  }
+
+  .table-link {
+    color: $color-primary;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: $color-text-muted;
+    padding: 2rem 1rem;
+  }
+
+  .retry-link {
+    background: none;
+    border: none;
+    padding: 0;
+    margin-left: 0.5rem;
+    color: $color-primary;
+    font-weight: 600;
+    font-size: inherit;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+
+  .danger-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: $color-danger;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+
+  @media (max-width: 700px) {
+    overflow-x: auto;
+  }
+}

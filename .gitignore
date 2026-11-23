@@ -5,3 +5,7 @@
 
 # Docker / datos
 volumes/
+
+# logs de desarrollo local
+frontend/.dev-server.log
+backend/.run-dev.log

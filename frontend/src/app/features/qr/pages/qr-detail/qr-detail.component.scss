@@ -1,0 +1,157 @@
+@use 'tokens' as *;
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: $color-text-muted;
+  font-size: 0.9rem;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+.qr-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.qr-detail-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.qr-preview {
+  display: grid;
+  place-items: center;
+  padding: 0.75rem 0 1.25rem;
+}
+
+
+
+.qr-meta,
+.qr-metrics {
+  margin: 0;
+  display: grid;
+  gap: 1rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  dt {
+    color: $color-text-muted;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+  }
+}
+
+.qr-metrics dd {
+  font-size: 1.4rem;
+}
+
+.inline-link {
+  color: $color-primary;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.not-found {
+  color: $color-text-muted;
+  padding: 2rem;
+  text-align: center;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+
+    small {
+      color: $color-text-muted;
+      font-weight: 500;
+      font-size: 0.72rem;
+    }
+  }
+}
+
+.qr-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: $color-text-muted;
+}
+
+.qr-payload {
+  overflow-wrap: anywhere;
+}
+
+.form-error {
+  color: $color-danger;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.qr-metrics-empty {
+  color: $color-text-muted;
+  font-size: 0.9rem;
+}
+
+.copy-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: $color-primary;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.qr-breakdown {
+  margin-top: 1.5rem;
+  border-top: 1px solid $color-border;
+  padding-top: 1rem;
+
+  h3 {
+    margin: 0 0 0.6rem;
+    font-size: 0.78rem;
+    color: $color-text-muted;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+  }
+
+  li {
+    display: flex;
+    justify-content: space-between;
+  }
+}

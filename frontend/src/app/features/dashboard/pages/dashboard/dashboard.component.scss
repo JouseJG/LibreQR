@@ -1,0 +1,216 @@
+@use 'tokens' as *;
+
+.metric-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.charts-grid {
+  display: grid;
+  // minmax(0, ..) evita que el contenido (texto largo de las barras) deforme las columnas
+  grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  align-items: stretch;
+
+  // ojo: no poner display:flex aqui; haria que la tarjeta interior encoja y deje
+  // hueco a la derecha. El grid-item block ya se estira, y .panel--fill usa height:100%
+  app-panel {
+    min-width: 0;
+  }
+
+  // la grafica de linea ocupa todo el alto libre del panel
+  app-line-chart {
+    flex: 1;
+    min-height: 240px;
+    display: block;
+  }
+}
+
+.dashboard-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+}
+
+.panel-sub {
+  margin: 0.15rem 0 0;
+  color: $color-text-muted;
+  font-size: 0.82rem;
+}
+
+.panel-empty {
+  color: $color-text-muted;
+  text-align: center;
+  padding: 1.5rem 0;
+  margin: 0;
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: $color-text-muted;
+  font-size: 0.82rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: $color-primary;
+}
+
+.chart-total {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.campaign-foot {
+  // en el panel `fill`, la caja de destaque se queda al fondo
+  margin: 0;
+  margin-top: auto;
+  padding: 0.75rem 0.9rem;
+  background: $color-primary-soft;
+  border: 1px solid rgba(13, 153, 149, 0.18);
+  border-radius: $radius-md;
+  font-size: 0.84rem;
+}
+
+.campaign-foot__title {
+  margin: 0;
+  color: $color-primary-hover;
+  font-weight: 600;
+}
+
+.campaign-foot__sub {
+  margin: 0.3rem 0 0;
+  color: $color-text-muted;
+  font-size: 0.8rem;
+}
+
+.mini-table {
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  td {
+    padding: 0.8rem 0;
+    border-bottom: 1px solid $color-border;
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr.row-click {
+    cursor: pointer;
+  }
+
+  .row-name {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-weight: 600;
+    font-size: 0.92rem;
+
+    small {
+      color: $color-text-muted;
+      font-weight: 500;
+      margin-left: 0.35rem;
+    }
+  }
+
+  .row-date {
+    color: $color-text-muted;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .table-actions {
+    text-align: right;
+  }
+
+  .table-link {
+    color: $color-primary;
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+
+  .empty-state {
+    color: $color-text-muted;
+    text-align: center;
+    padding: 1.25rem 0;
+  }
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &--active {
+    background: $color-success;
+  }
+
+  &--paused {
+    background: $color-warning;
+  }
+
+  &--finished {
+    background: $color-purple;
+  }
+}
+
+.inline-link {
+  color: $color-primary;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+@media (max-width: 1200px) {
+  .metric-cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1000px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .metric-cards,
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}

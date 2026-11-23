@@ -1,0 +1,36 @@
+<div class="app-shell">
+  <aside class="sidebar">
+    <div>
+      <img src="assets/libreqr_logo.png" alt="Logo" class="brand-logo" />
+    </div>
+
+    <nav class="nav">
+      <a routerLink="/dashboard" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Dashboard</a>
+      <a routerLink="/campaigns" routerLinkActive="active">Campañas</a>
+      <a routerLink="/qr" routerLinkActive="active">Códigos QR</a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button type="button" class="logout-btn" (click)="logout()">Cerrar sesión</button>
+    </div>
+  </aside>
+
+  <div class="workspace">
+    <header class="topbar">
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        @for (item of breadcrumbs(); track $index; let last = $last) {
+          <span class="crumb" [class.crumb--current]="last">
+            <span class="crumb-label">{{ item }}</span>
+            @if (!last) {
+              <span class="crumb-separator">/</span>
+            }
+          </span>
+        }
+      </nav>
+    </header>
+
+    <main class="content-area">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

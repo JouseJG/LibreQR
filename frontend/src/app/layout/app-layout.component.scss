@@ -1,0 +1,142 @@
+@use 'tokens' as *;
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: rgba(255, 255, 255, 0.5);
+  padding: 1.5rem 1.1rem;
+  color: #f4f7fb;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+
+.logout-btn {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid $color-border;
+  background: transparent;
+  color: $color-text-muted;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+
+  &:hover {
+    color: $color-danger;
+    border-color: $color-danger;
+  }
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+}
+
+.nav a {
+  display: block;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  color: #647681;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.nav a:hover,
+.nav a.active {
+  background: rgba(13, 153, 149, 0.16);
+  color: var(--color-primary-hover);
+  // box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+  transform: translateX(2px);
+}
+
+.workspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 2rem 1rem;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  background: rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-height: 2rem;
+}
+
+.crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.crumb-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.crumb--current .crumb-label {
+  color: $color-primary;
+  font-weight: 700;
+}
+
+.crumb-separator {
+  color: #c2ccd8;
+  font-weight: 700;
+}
+
+.content-area {
+  padding: 2rem;
+  min-height: 0;
+}
+
+@media (max-width: 900px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    padding-bottom: 0.8rem;
+  }
+
+  .nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .topbar {
+    padding: 1.25rem 1rem 0.9rem;
+  }
+
+  .content-area {
+    padding: 1rem;
+  }
+}
+
+.brand-logo {
+  width: 100%;
+  max-width: 200px;
+  height: auto;
+  margin-bottom: 1rem;
+}

@@ -1,0 +1,89 @@
+@use 'tokens' as *;
+
+.back-link {
+  display: inline-block;
+  margin-bottom: 1rem;
+  color: $color-text-muted;
+  font-size: 0.9rem;
+
+  &:hover {
+    color: $color-primary;
+  }
+}
+
+.secondary-link {
+  color: $color-primary;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.campaign-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.campaign-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.35rem 0 0;
+}
+
+.form-error {
+  color: $color-danger;
+  font-size: 0.85rem;
+  margin: 0 0 1rem;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.05rem;
+
+    small {
+      color: $color-text-muted;
+      font-weight: 500;
+      font-size: 0.72rem;
+    }
+  }
+}
+
+app-panel {
+  display: block;
+  margin-top: 1.25rem;
+}
+
+.campaign-metrics {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1rem;
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  dt {
+    color: $color-text-muted;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 700;
+  }
+
+  dd {
+    margin: 0;
+    font-weight: 600;
+    font-size: 1.4rem;
+  }
+}
+
+
