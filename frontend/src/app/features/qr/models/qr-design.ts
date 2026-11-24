@@ -1,7 +1,8 @@
 /**
  * Configuracion de diseno del QR, mapeada a qr-code-styling:
  *
- * - MARCO: banda de texto bajo el QR (`labelOptions`) con su propio color de texto.
+ * - MARCO: campo heredado (`labelOptions`) que el disenador ya no expone; se respeta
+ *   si existe en disenos antiguos.
  * - FORMA: trama de puntos (`dotsOptions`: color o degradado, fondo opcionalmente
  *   transparente), esquinas (`cornersSquareOptions` con color propio) y centro de las
  *   esquinas (`cornersDotOptions` con color propio).
@@ -69,23 +70,27 @@ export const FRAME_OPTIONS: { value: QrFrameStyle; label: string }[] = [
   { value: 'text', label: 'Con texto' },
 ];
 
-export const DOT_OPTIONS: { value: QrDotType; label: string }[] = [
-  { value: 'square', label: 'Cuadrados' },
-  { value: 'rounded', label: 'Redondos' },
-  { value: 'classy', label: 'Classy' },
-  { value: 'classy-rounded', label: 'Classy suave' },
-  { value: 'dots', label: 'Puntos' },
+export type DesignOption<T> = { value: T; label: string; icon: string };
+
+/** Trama de puntos (el disenador ofrece solo las que tienen icono). */
+export const DOT_OPTIONS: DesignOption<QrDotType>[] = [
+  { value: 'square', label: 'Cuadrados', icon: '/assets/svg/forma/cuadrados.svg' },
+  { value: 'rounded', label: 'Redondos', icon: '/assets/svg/forma/redondos.svg' },
+  { value: 'dots', label: 'Puntos', icon: '/assets/svg/forma/puntos.svg' },
 ];
 
-export const CORNER_OPTIONS: { value: QrCornerType; label: string }[] = [
-  { value: 'square', label: 'Cuadradas' },
-  { value: 'dot', label: 'Punto' },
-  { value: 'extra-rounded', label: 'Suaves' },
+/** Tipos de trama que pueden venir en disenos antiguos (fuera del menu). */
+const LEGACY_DOT_TYPES: QrDotType[] = ['classy', 'classy-rounded'];
+
+export const CORNER_OPTIONS: DesignOption<QrCornerType>[] = [
+  { value: 'square', label: 'Cuadradas', icon: '/assets/svg/bordes/cuadrados.svg' },
+  { value: 'dot', label: 'Punto', icon: '/assets/svg/bordes/circulo.svg' },
+  { value: 'extra-rounded', label: 'Suaves', icon: '/assets/svg/bordes/cuadradosSuave.svg' },
 ];
 
-export const CORNER_DOT_OPTIONS: { value: QrCornerDotType; label: string }[] = [
-  { value: 'square', label: 'Cuadrado' },
-  { value: 'dot', label: 'Redondo' },
+export const CORNER_DOT_OPTIONS: DesignOption<QrCornerDotType>[] = [
+  { value: 'square', label: 'Cuadrado', icon: '/assets/svg/borde_interno/cuadrados.svg' },
+  { value: 'dot', label: 'Redondo', icon: '/assets/svg/borde_interno/circulo.svg' },
 ];
 
 export const LOGO_OPTIONS: { value: QrLogoSource; label: string }[] = [
@@ -116,7 +121,12 @@ export function designFromConfig(config: unknown): QrDesign {
     frame: isOneOf(FRAME_OPTIONS, raw['frame']) ? (raw['frame'] as QrFrameStyle) : 'none',
     frameText: typeof raw['frameText'] === 'string' ? (raw['frameText'] as string) : '',
     frameTextColor: hex(raw['frameTextColor'], raw['frameColor'], NEUTRAL_QR_DESIGN.frameTextColor),
-    dotType: isOneOf(DOT_OPTIONS, raw['dotType']) ? (raw['dotType'] as QrDotType) : NEUTRAL_QR_DESIGN.dotType,
+    dotType:
+      isOneOf(DOT_OPTIONS, raw['dotType']) ||
+      (typeof raw['dotType'] === 'string' &&
+        LEGACY_DOT_TYPES.includes(raw['dotType'] as QrDotType))
+        ? (raw['dotType'] as QrDotType)
+        : NEUTRAL_QR_DESIGN.dotType,
     dotColor: hex(raw['dotColor'], null, NEUTRAL_QR_DESIGN.dotColor),
     background: hex(raw['background'], null, NEUTRAL_QR_DESIGN.background),
     cornerType: isOneOf(CORNER_OPTIONS, raw['cornerType'])

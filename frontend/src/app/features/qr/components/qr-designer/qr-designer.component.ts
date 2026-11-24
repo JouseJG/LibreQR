@@ -7,12 +7,10 @@ import {
   CORNER_DOT_OPTIONS,
   CORNER_OPTIONS,
   DOT_OPTIONS,
-  FRAME_OPTIONS,
   QrCornerDotType,
   QrCornerType,
   QrDesign,
   QrDotType,
-  QrFrameStyle,
   QrLogoSource,
 } from '../../models/qr-design';
 
@@ -24,7 +22,9 @@ const LOGO_OPTIONS_BASE: { value: QrLogoSource; label: string }[] = [
 ];
 
 /**
- * Disenador de QR (marco, forma y logo) reutilizado por la creacion y la edicion.
+ * Disenador de QR (forma y logo) reutilizado por la creacion y la edicion. Las
+ * opciones se previsualizan con los iconos SVG de `public/assets/svg`. El marco de
+ * texto quedo fuera del menu (los disenos antiguos lo conservan al renderizar).
  * Uso: <app-qr-designer [(design)]="design" [content]="textoPreview" />
  */
 @Component({
@@ -39,52 +39,20 @@ const LOGO_OPTIONS_BASE: { value: QrLogoSource; label: string }[] = [
       (tabChange)="tab.set($event)"></ui-tabs>
 
     @switch (tab()) {
-      @case('frame') {
-        <div class="design-group">
-          <div class="option-row">
-            @for (option of frameOptions(); track option.value) {
-              <button
-                type="button"
-                class="design-option"
-                [class.design-option--active]="design().frame === option.value"
-                [attr.aria-pressed]="design().frame === option.value"
-                (click)="setFrame(option.value)">
-                <qr-thumb [content]="previewContent()" [design]="option.design" [size]="44"></qr-thumb>
-                <span>{{ option.label }}</span>
-              </button>
-            }
-          </div>
-          @if (design().frame === 'text') {
-            <div class="design-field">
-              <label for="frame-text">Texto del marco</label>
-              <input
-                id="frame-text"
-                maxlength="40"
-                placeholder="Ej. Escanéame"
-                [ngModel]="design().frameText"
-                [ngModelOptions]="{ standalone: true }"
-                (ngModelChange)="setFrameText($event)" />
-            </div>
-            <app-color-field
-              label="Color del texto"
-              [value]="design().frameTextColor"
-              (change)="setColor('frameTextColor', $event)"></app-color-field>
-          }
-        </div>
-      }
       @case('dot') {
         <div class="design-group">
           <h3>Trama de puntos</h3>
           <div class="option-row">
-            @for (option of dotOptions(); track option.value) {
+            @for (option of dotOptions; track option.value) {
               <button
                 type="button"
                 class="design-option"
                 [class.design-option--active]="design().dotType === option.value"
                 [attr.aria-pressed]="design().dotType === option.value"
+                [attr.aria-label]="option.label"
+                [title]="option.label"
                 (click)="setDot(option.value)">
-                <qr-thumb [content]="previewContent()" [design]="option.design" [size]="36"></qr-thumb>
-                <span>{{ option.label }}</span>
+                <img class="design-icon" [src]="option.icon" alt="" width="36" height="36" />
               </button>
             }
           </div>
@@ -101,15 +69,16 @@ const LOGO_OPTIONS_BASE: { value: QrLogoSource; label: string }[] = [
 
           <h3>Esquinas</h3>
           <div class="option-row">
-            @for (option of cornerOptions(); track option.value) {
+            @for (option of cornerOptions; track option.value) {
               <button
                 type="button"
                 class="design-option"
                 [class.design-option--active]="design().cornerType === option.value"
                 [attr.aria-pressed]="design().cornerType === option.value"
+                [attr.aria-label]="option.label"
+                [title]="option.label"
                 (click)="setCorner(option.value)">
-                <qr-thumb [content]="previewContent()" [design]="option.design" [size]="36"></qr-thumb>
-                <span>{{ option.label }}</span>
+                <img class="design-icon" [src]="option.icon" alt="" width="36" height="36" />
               </button>
             }
           </div>
@@ -120,15 +89,16 @@ const LOGO_OPTIONS_BASE: { value: QrLogoSource; label: string }[] = [
 
           <h3>Centro de las esquinas</h3>
           <div class="option-row">
-            @for (option of cornerDotOptions(); track option.value) {
+            @for (option of cornerDotOptions; track option.value) {
               <button
                 type="button"
                 class="design-option"
                 [class.design-option--active]="design().cornerDotType === option.value"
                 [attr.aria-pressed]="design().cornerDotType === option.value"
+                [attr.aria-label]="option.label"
+                [title]="option.label"
                 (click)="setCornerDot(option.value)">
-                <qr-thumb [content]="previewContent()" [design]="option.design" [size]="36"></qr-thumb>
-                <span>{{ option.label }}</span>
+                <img class="design-icon" [src]="option.icon" alt="" width="36" height="36" />
               </button>
             }
           </div>
@@ -232,6 +202,11 @@ const LOGO_OPTIONS_BASE: { value: QrLogoSource; label: string }[] = [
       }
     }
 
+    .design-icon {
+      object-fit: contain;
+      color: $color-text;
+    }
+
     .color-row {
       display: flex;
       flex-wrap: wrap;
@@ -264,44 +239,19 @@ export class QrDesignerComponent {
   readonly content = input('');
   readonly designChange = output<QrDesign>();
 
-  protected readonly tab = signal('frame');
+  protected readonly tab = signal('dot');
   protected readonly logoError = signal('');
 
   protected readonly designTabs = [
-    { key: 'frame', label: 'Marco' },
     { key: 'dot', label: 'Forma' },
     { key: 'logo', label: 'Logo' },
   ];
 
   protected readonly previewContent = computed(() => this.content());
 
-  protected readonly frameOptions = computed(() =>
-    FRAME_OPTIONS.map((option) => ({
-      ...option,
-      design: { ...this.design(), frame: option.value },
-    })),
-  );
-
-  protected readonly dotOptions = computed(() =>
-    DOT_OPTIONS.map((option) => ({
-      ...option,
-      design: { ...this.design(), dotType: option.value },
-    })),
-  );
-
-  protected readonly cornerOptions = computed(() =>
-    CORNER_OPTIONS.map((option) => ({
-      ...option,
-      design: { ...this.design(), cornerType: option.value },
-    })),
-  );
-
-  protected readonly cornerDotOptions = computed(() =>
-    CORNER_DOT_OPTIONS.map((option) => ({
-      ...option,
-      design: { ...this.design(), cornerDotType: option.value },
-    })),
-  );
+  protected readonly dotOptions = DOT_OPTIONS;
+  protected readonly cornerOptions = CORNER_OPTIONS;
+  protected readonly cornerDotOptions = CORNER_DOT_OPTIONS;
 
   protected readonly logoOptions = computed(() => {
     const base =
@@ -313,14 +263,6 @@ export class QrDesignerComponent {
       design: { ...this.design(), logo: option.value },
     }));
   });
-
-  protected setFrame(frame: QrFrameStyle): void {
-    this.apply({ frame });
-  }
-
-  protected setFrameText(value: string): void {
-    this.apply({ frameText: value.slice(0, 40) });
-  }
 
   protected setDot(dotType: QrDotType): void {
     this.apply({ dotType });
