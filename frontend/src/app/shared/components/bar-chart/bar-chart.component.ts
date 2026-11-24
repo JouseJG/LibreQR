@@ -5,6 +5,8 @@ export type BarItem = {
   value: number;
   /** Clave estable para track (por defecto se usa el indice). */
   key?: string;
+  /** Texto tras el valor (p. ej. el porcentaje de un total). */
+  suffix?: string;
 };
 
 /**
@@ -21,7 +23,7 @@ export type BarItem = {
         <li class="bar-row" [class.bar-row--clickable]="selectable()" (click)="emitClick(item)">
           <div class="bar-head">
             <span>{{ item.label }}</span>
-            <strong>{{ format(item.value) }}</strong>
+            <strong>{{ format(item.value) }}<span class="bar-suffix">{{ item.suffix }}</span></strong>
           </div>
           <div class="bar-track">
             <div class="bar-fill" [style.width.%]="width(item.value)"></div>
@@ -56,6 +58,12 @@ export type BarItem = {
       strong {
         font-variant-numeric: tabular-nums;
       }
+    }
+
+    .bar-suffix {
+      color: $color-text-muted;
+      font-weight: 600;
+      margin-left: 0.4rem;
     }
 
     .bar-track {

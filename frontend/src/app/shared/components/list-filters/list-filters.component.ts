@@ -16,7 +16,7 @@ export type FilterOption = {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FormsModule],
   template: `
-    <div class="toolbar-panel">
+    <div class="toolbar-panel" [class.toolbar-bare]="!framed()">
       <ng-content select="[listTabs]" />
 
       <div class="toolbar-controls">
@@ -60,6 +60,9 @@ export type FilterOption = {
   styleUrl: './list-filters.component.scss',
 })
 export class ListFiltersComponent {
+  /** false = sin marco propio (lo aporta un contenedor externo, p. ej. app-data-table). */
+  readonly framed = input(true);
+
   readonly showSearch = input(true);
   readonly searchLabel = input('Buscar');
   readonly searchPlaceholder = input('');

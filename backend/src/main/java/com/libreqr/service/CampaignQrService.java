@@ -12,6 +12,10 @@ import com.libreqr.repository.CampaignRepository;
 import com.libreqr.repository.QrCodeRepository;
 import org.springframework.stereotype.Service;
 
+import com.libreqr.dto.QrResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -29,12 +33,14 @@ public class CampaignQrService {
     private final CampaignQrRepository links;
     private final QrCodeRepository qrCodes;
     private final CampaignRepository campaigns;
+    private final QrService qrQuery;
 
     public CampaignQrService(CampaignQrRepository links, QrCodeRepository qrCodes,
-                             CampaignRepository campaigns) {
+                             CampaignRepository campaigns, QrService qrQuery) {
         this.links = links;
         this.qrCodes = qrCodes;
         this.campaigns = campaigns;
+        this.qrQuery = qrQuery;
     }
 
     public CampaignQrResponse add(UUID ownerId, UUID campaignId, UUID qrCodeId) {
@@ -65,6 +71,15 @@ public class CampaignQrService {
             qrCodes.save(qr);
         }
         return toResponse(saved);
+    }
+
+    /** Detalle de los QRs asociados: paginado, ordenable y buscable (perfil de campana). */
+    public Page<QrResponse> details(UUID ownerId, UUID campaignId, Pageable pageable,
+                                    String search) {
+        List<UUID> qrIds = links.findByCampaignId(campaignId).stream()
+                .map(CampaignQr::getQrCodeId)
+                .toList();
+        return qrQuery.listByIds(ownerId, qrIds, pageable, search);
     }
 
     public List<CampaignQrResponse> list(UUID campaignId) {

@@ -2,7 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, forkJoin, of, switchMap } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
-import { CampaignMetrics } from '../models/api.models';
+import { CampaignMetrics, CampaignStats, Page } from '../models/api.models';
 import { QrApiService } from './qr-api.service';
 import {
   Campaign,
@@ -70,6 +70,24 @@ export class CampaignApiService {
     return this.http.get<CampaignQrLink[]>(`${API_BASE_URL}/campaigns/${campaignId}/qrs`);
   }
 
+  /** Pagina de QRs asociados (busqueda/orden servidor) para el perfil de campana. */
+  linkedQrsPage(
+    campaignId: string,
+    page: number,
+    size: number,
+    sort: string,
+    search?: string,
+  ): Observable<Page<QrItem>> {
+    let params = new HttpParams().set('page', page).set('size', size).set('sort', sort);
+    if (search) {
+      params = params.set('search', search);
+    }
+    return this.http.get<Page<QrItem>>(
+      `${API_BASE_URL}/campaigns/${campaignId}/qrs/details`,
+      { params },
+    );
+  }
+
   /** Links + detalle de cada QR (N+1 aceptable con campanas pequenas). */
   linkedQrs(campaignId: string): Observable<QrItem[]> {
     return this.links(campaignId).pipe(
@@ -83,5 +101,18 @@ export class CampaignApiService {
 
   metrics(campaignId: string): Observable<CampaignMetrics> {
     return this.http.get<CampaignMetrics>(`${API_BASE_URL}/campaigns/${campaignId}/metrics`);
+  }
+
+  /** Estadisticas del perfil (resumen + serie + dispositivos + paises) para un rango. */
+  stats(campaignId: string, from: string, to: string): Observable<CampaignStats> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<CampaignStats>(`${API_BASE_URL}/campaigns/${campaignId}/stats`, {
+      params,
+    });
+  }
+
+  /** URL de descarga CSV (serie diaria del rango); la sesion viaja en la cookie. */
+  statsExportUrl(campaignId: string, from: string, to: string): string {
+    return `${API_BASE_URL}/campaigns/${campaignId}/stats/export?from=${from}&to=${to}`;
   }
 }

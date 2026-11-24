@@ -1,10 +1,13 @@
 package com.libreqr.controller;
 
 import com.libreqr.dto.QrMetricsResponse;
+import com.libreqr.dto.QrStatsResponse;
+import com.libreqr.dto.DailyScanStat;
 import com.libreqr.dto.ScanCountsRequest;
 import com.libreqr.security.AuthenticatedUser;
 import com.libreqr.security.CurrentUser;
 import com.libreqr.service.MetricsService;
+import com.libreqr.service.StatsService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,6 +19,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -28,9 +33,11 @@ import java.util.UUID;
 public class QrMetricsController {
 
     private final MetricsService metrics;
+    private final StatsService stats;
 
-    public QrMetricsController(MetricsService metrics) {
+    public QrMetricsController(MetricsService metrics, StatsService stats) {
         this.metrics = metrics;
+        this.stats = stats;
     }
 
     @GetMapping("/{id}/metrics")
@@ -42,6 +49,37 @@ public class QrMetricsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
             Instant to) {
         return metrics.qrMetrics(current.userId(), id, from, to);
+    }
+
+    @GetMapping("/{id}/stats")
+    public QrStatsResponse stats(
+            @CurrentUser AuthenticatedUser current,
+            @PathVariable UUID id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return stats.qrStats(current.userId(), id, from, to); // 404 si no es propio
+    }
+
+    /** Serie diaria del rango en CSV (descarga desde el perfil del QR). */
+    @GetMapping(value = "/{id}/stats/export", produces = "text/csv")
+    public org.springframework.http.ResponseEntity<String> exportStats(
+            @CurrentUser AuthenticatedUser current,
+            @PathVariable UUID id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        QrStatsResponse data = stats.qrStats(current.userId(), id, from, to);
+        List<DailyScanStat> series = data.dailySeries();
+        LocalDate first = series.isEmpty() ? LocalDate.now() : series.get(0).date();
+        LocalDate last = series.isEmpty() ? LocalDate.now()
+                : series.get(series.size() - 1).date();
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition",
+                        "attachment; filename=\"qr-%s-%s_a_%s.csv\"".formatted(id, first, last))
+                .body(StatsService.toCsv(series));
     }
 
     /**

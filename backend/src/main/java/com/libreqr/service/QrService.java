@@ -103,12 +103,7 @@ public class QrService {
         if (status != null) {
             base = base.and("status").is(status);
         }
-        if (search != null && !search.isBlank()) {
-            String quoted = Pattern.quote(search.trim());
-            base = base.andOperator(new Criteria().orOperator(
-                    Criteria.where("name").regex(quoted, "i"),
-                    Criteria.where("description").regex(quoted, "i")));
-        }
+        base = withSearch(base, search);
 
         Query countQuery = new Query(base);
         long total = mongo.count(countQuery, QrCode.class);
@@ -117,6 +112,35 @@ public class QrService {
         List<QrCode> content = mongo.find(pageQuery, QrCode.class);
         return new PageImpl<>(content.stream().map(mapper::toResponse).toList(), pageable,
                 total);
+    }
+
+    /**
+     * Paginacion/orden/busqueda sobre un subconjunto concreto de QRs (detalle de
+     * campana). Las ids ya vienen validadas como propias por quien las obtiene.
+     */
+    public Page<QrResponse> listByIds(UUID ownerId, java.util.Collection<UUID> ids,
+                                      Pageable pageable, String search) {
+        if (ids.isEmpty()) {
+            return Page.empty(pageable);
+        }
+        Criteria base = withSearch(
+                Criteria.where("id").in(ids).and("ownerId").is(ownerId)
+                        .and("deletedAt").isNull(),
+                search);
+        long total = mongo.count(new Query(base), QrCode.class);
+        List<QrCode> content = mongo.find(new Query(base).with(pageable), QrCode.class);
+        return new PageImpl<>(content.stream().map(mapper::toResponse).toList(), pageable,
+                total);
+    }
+
+    private Criteria withSearch(Criteria base, String search) {
+        if (search != null && !search.isBlank()) {
+            String quoted = Pattern.quote(search.trim());
+            return base.andOperator(new Criteria().orOperator(
+                    Criteria.where("name").regex(quoted, "i"),
+                    Criteria.where("description").regex(quoted, "i")));
+        }
+        return base;
     }
 
     public QrResponse get(UUID ownerId, UUID id) {

@@ -5,18 +5,18 @@ import { CampaignApiService } from '../../../../core/services/campaign-api.servi
 import { QrApiService, QrSort } from '../../../../core/services/qr-api.service';
 import { problemMessage } from '../../../../core/models/api.models';
 import { ListQueryState } from '../../../../core/utils/list-query-state';
-import { FilterOption, ListFiltersComponent } from '../../../../shared/components/list-filters/list-filters.component';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { FilterOption } from '../../../../shared/components/list-filters/list-filters.component';
 import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
 import { QrThumbComponent } from '../../../../shared/components/qr-thumb/qr-thumb.component';
-import { TableCardComponent } from '../../../../shared/components/table-card/table-card.component';
 import { UiButtonComponent } from '../../../../shared/components/ui-button/ui-button.component';
-import { UiTabsComponent } from '../../../../shared/components/ui-tabs/ui-tabs.component';
 import { Campaign } from '../../../campaign/models/campaign.model';
 import { designFromConfig } from '../../models/qr-design';
 import {
   QrItem,
   QrPage,
   QrStatus,
+  QrType,
   qrShareContent,
   QR_STATUS_LABELS,
   QR_TYPE_LABELS,
@@ -32,9 +32,7 @@ const PAGE_SIZE = 5;
     CommonModule,
     RouterLink,
     UiButtonComponent,
-    UiTabsComponent,
-    ListFiltersComponent,
-    TableCardComponent,
+    DataTableComponent,
     StatusBadgeComponent,
     QrThumbComponent,
   ],
@@ -47,76 +45,45 @@ const PAGE_SIZE = 5;
         <ui-button variant="primary" routerLink="/qr/new">+ Crear QR</ui-button>
       </header>
 
-      <app-list-filters
-        searchLabel="Buscar"
-        searchPlaceholder="Nombre o descripción"
-        [search]="list.search()"
-        (searchChange)="list.setSearch($event)"
-        [sortOptions]="sortOptions"
-        [sortBy]="list.sort()"
-        (sortByChange)="list.setSort($event)">
-        <ui-tabs
-          listTabs
-          ariaLabel="Filtrar códigos QR por estado"
-          [tabs]="statusTabs"
-          [activeKey]="list.statusTab()"
-          (tabChange)="list.setStatus($event)"></ui-tabs>
-      </app-list-filters>
-
-      <app-table-card
-        [loading]="list.loading()"
-        [error]="list.error()"
-        [empty]="qrCodes().length === 0"
-        emptyText="No se han encontrado códigos QR con estos filtros."
-        [totalItems]="totalElements()"
-        [page]="list.page()"
+      <app-data-table
+        [query]="list"
+        [rows]="qrCodes()"
+        [columns]="['Código QR', 'Campaña', 'Tipo', 'Estado', 'Escaneos', 'Creación', '']"
+        [total]="totalElements()"
         [pageSize]="pageSize"
-        (retry)="list.retry()"
-        (pageChange)="list.setPage($event)">
-        <table>
-          <thead>
-            <tr>
-              <th>Código QR</th>
-              <th>Campaña</th>
-              <th>Tipo</th>
-              <th>Estado</th>
-              <th>Escaneos</th>
-              <th>Creación</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (qr of qrCodes(); track qr.id) {
-              <tr class="row-click" [routerLink]="['/qr', qr.id]">
-                <td>
-                  <div class="row-name">
-                    <qr-thumb
-                      [content]="qrShareContent(qr)"
-                      [design]="designFromConfig(qr.designConfig)"
-                      [size]="40"></qr-thumb>
-                    {{ qr.name }}
-                  </div>
-                </td>
-                <td>{{ campaignName(qr.campaignId) }}</td>
-                <td>{{ QR_TYPE_LABELS[qr.type] }}</td>
-                <td>
-                  <status-badge
-                    [status]="QR_STATUS_LABELS[qr.status]"
-                    [tone]="qrStatusTone(qr.status)"></status-badge>
-                </td>
-                <td>{{ scanCounts()[qr.id] ?? 0 }}</td>
-                <td>{{ qr.createdAt | date: 'dd MMM yyyy' }}</td>
-                <td class="table-actions">
-                  <a class="table-link" [routerLink]="['/qr', qr.id]">
-                    Ver detalles
-                    <span aria-hidden="true">→</span>
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </app-table-card>
+        searchPlaceholder="Nombre o descripción"
+        emptyText="No se han encontrado códigos QR con estos filtros."
+        [sortOptions]="sortOptions"
+        [tabs]="statusTabs"
+        tabsAriaLabel="Filtrar códigos QR por estado"
+        [rowLink]="qrRowLink">
+        <ng-template #rowCells let-qr>
+          <td>
+            <div class="row-name">
+              <qr-thumb
+                [content]="qrShareContent($any(qr))"
+                [design]="designFromConfig($any(qr).designConfig)"
+                [size]="40"></qr-thumb>
+              {{ $any(qr).name }}
+            </div>
+          </td>
+          <td>{{ campaignName($any(qr).campaignId) }}</td>
+          <td>{{ qrTypeLabel(qr) }}</td>
+          <td>
+            <status-badge
+              [status]="qrStatusLabel(qr)"
+              [tone]="qrStatusTone($any(qr).status)"></status-badge>
+          </td>
+          <td>{{ scanCounts()[$any(qr).id] ?? 0 }}</td>
+          <td>{{ $any(qr).createdAt | date: 'dd MMM yyyy' }}</td>
+          <td class="table-actions">
+            <a class="table-link" [routerLink]="['/qr', qr.id]">
+              Ver detalles
+              <span aria-hidden="true">→</span>
+            </a>
+          </td>
+        </ng-template>
+      </app-data-table>
     </section>
   `,
 })
@@ -143,6 +110,8 @@ export class QrListComponent {
     { key: 'active', label: 'Activos' },
     { key: 'inactive', label: 'Inactivos' },
   ];
+
+  protected readonly qrRowLink = (qr: QrItem): unknown[] => ['/qr', qr.id];
 
   protected readonly list = new ListQueryState({ reload: () => this.load() });
   protected readonly data = signal<QrPage | null>(null);
@@ -188,6 +157,14 @@ export class QrListComponent {
           this.list.loading.set(false);
         },
       });
+  }
+
+  protected qrTypeLabel(qr: unknown): string {
+    return QR_TYPE_LABELS[(qr as QrItem).type];
+  }
+
+  protected qrStatusLabel(qr: unknown): string {
+    return QR_STATUS_LABELS[(qr as QrItem).status];
   }
 
   protected campaignName(campaignId: string | null): string {

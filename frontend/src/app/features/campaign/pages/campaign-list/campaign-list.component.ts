@@ -4,11 +4,10 @@ import { RouterLink } from '@angular/router';
 import { CampaignApiService, CampaignSort } from '../../../../core/services/campaign-api.service';
 import { problemMessage } from '../../../../core/models/api.models';
 import { ListQueryState } from '../../../../core/utils/list-query-state';
-import { FilterOption, ListFiltersComponent } from '../../../../shared/components/list-filters/list-filters.component';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { FilterOption } from '../../../../shared/components/list-filters/list-filters.component';
 import { StatusBadgeComponent } from '../../../../shared/components/status-badge/status-badge.component';
-import { TableCardComponent } from '../../../../shared/components/table-card/table-card.component';
 import { UiButtonComponent } from '../../../../shared/components/ui-button/ui-button.component';
-import { UiTabsComponent } from '../../../../shared/components/ui-tabs/ui-tabs.component';
 import {
   Campaign,
   CampaignPage,
@@ -26,9 +25,7 @@ const PAGE_SIZE = 5;
     CommonModule,
     RouterLink,
     UiButtonComponent,
-    UiTabsComponent,
-    ListFiltersComponent,
-    TableCardComponent,
+    DataTableComponent,
     StatusBadgeComponent,
   ],
   template: `
@@ -40,71 +37,42 @@ const PAGE_SIZE = 5;
         <ui-button variant="primary" routerLink="/campaigns/new">+ Crear campaña</ui-button>
       </header>
 
-      <app-list-filters
-        searchLabel="Buscar"
-        searchPlaceholder="Nombre o descripción"
-        [search]="list.search()"
-        (searchChange)="list.setSearch($event)"
-        [sortOptions]="sortOptions"
-        [sortBy]="list.sort()"
-        (sortByChange)="list.setSort($event)">
-        <ui-tabs
-          listTabs
-          ariaLabel="Filtrar campañas por estado"
-          [tabs]="statusTabs"
-          [activeKey]="list.statusTab()"
-          (tabChange)="list.setStatus($event)"></ui-tabs>
-      </app-list-filters>
-
-      <app-table-card
-        [loading]="list.loading()"
-        [error]="list.error()"
-        [empty]="campaigns().length === 0"
-        emptyText="No se han encontrado campañas con estos filtros."
-        [totalItems]="totalElements()"
-        [page]="list.page()"
+      <app-data-table
+        [query]="list"
+        [rows]="campaigns()"
+        [columns]="['Campaña', 'Descripción', 'Estado', 'Creación', '']"
+        [total]="totalElements()"
         [pageSize]="pageSize"
-        (retry)="list.retry()"
-        (pageChange)="list.setPage($event)">
-        <table>
-          <thead>
-            <tr>
-              <th>Campaña</th>
-              <th>Descripción</th>
-              <th>Estado</th>
-              <th>Creación</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (campaign of campaigns(); track campaign.id) {
-              <tr class="row-click" [routerLink]="['/campaigns', campaign.id]">
-                <td>
-                  <div class="row-name">
-                    <span class="dot" style="background: #0d9995"></span>
-                    {{ campaign.name }}
-                  </div>
-                </td>
-                <td class="campaign-description">
-                  {{ campaign.description || '—' }}
-                </td>
-                <td>
-                  <status-badge
-                    [status]="CAMPAIGN_STATUS_LABELS[campaign.status]"
-                    [tone]="campaignStatusTone(campaign.status)"></status-badge>
-                </td>
-                <td>{{ campaign.createdAt | date: 'dd MMM yyyy' }}</td>
-                <td class="table-actions">
-                  <a class="table-link" [routerLink]="['/campaigns', campaign.id]">
-                    Ver detalles
-                    <span aria-hidden="true">→</span>
-                  </a>
-                </td>
-              </tr>
-            }
-          </tbody>
-        </table>
-      </app-table-card>
+        searchPlaceholder="Nombre o descripción"
+        emptyText="No se han encontrado campañas con estos filtros."
+        [sortOptions]="sortOptions"
+        [tabs]="statusTabs"
+        tabsAriaLabel="Filtrar campañas por estado"
+        [rowLink]="campaignRowLink">
+        <ng-template #rowCells let-campaign>
+          <td>
+            <div class="row-name">
+              <span class="dot" style="background: #0d9995"></span>
+              {{ $any(campaign).name }}
+            </div>
+          </td>
+          <td class="campaign-description">
+            {{ $any(campaign).description || '—' }}
+          </td>
+          <td>
+            <status-badge
+              [status]="statusLabel(campaign)"
+              [tone]="campaignStatusTone($any(campaign).status)"></status-badge>
+          </td>
+          <td>{{ $any(campaign).createdAt | date: 'dd MMM yyyy' }}</td>
+          <td class="table-actions">
+            <a class="table-link" [routerLink]="['/campaigns', $any(campaign).id]">
+              Ver detalles
+              <span aria-hidden="true">→</span>
+            </a>
+          </td>
+        </ng-template>
+      </app-data-table>
     </section>
   `,
   styles: `
@@ -134,6 +102,15 @@ export class CampaignListComponent {
     { key: 'active', label: 'Activas' },
     { key: 'paused', label: 'Pausadas' },
     { key: 'finished', label: 'Finalizadas' },
+  ];
+
+  protected statusLabel(campaign: unknown): string {
+    return CAMPAIGN_STATUS_LABELS[(campaign as Campaign).status];
+  }
+
+  protected readonly campaignRowLink = (campaign: Campaign): unknown[] => [
+    '/campaigns',
+    campaign.id,
   ];
 
   protected readonly list = new ListQueryState({ reload: () => this.load() });

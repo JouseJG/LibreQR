@@ -6,14 +6,18 @@ import com.libreqr.dto.StatsSummaryResponse;
 import com.libreqr.security.AuthenticatedUser;
 import com.libreqr.security.CurrentUser;
 import com.libreqr.service.StatsService;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Resumen global del dashboard (una unica llamada autenticada; solo datos propios).
+ * Resumen del dashboard (autenticado; solo datos propios). Los tres endpoints aceptan
+ * el rango opcional `from`/`to` (ISO date, inclusivo); por defecto, mes en curso.
  */
 @RestController
 @RequestMapping("/api/stats")
@@ -26,17 +30,32 @@ public class StatsController {
     }
 
     @GetMapping("/summary")
-    public StatsSummaryResponse summary(@CurrentUser AuthenticatedUser current) {
-        return stats.summary(current.userId());
+    public StatsSummaryResponse summary(
+            @CurrentUser AuthenticatedUser current,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate to) {
+        return stats.summary(current.userId(), from, to);
     }
 
     @GetMapping("/daily-scans")
-    public List<DailyScanStat> dailyScans(@CurrentUser AuthenticatedUser current) {
-        return stats.dailyScans(current.userId());
+    public List<DailyScanStat> dailyScans(
+            @CurrentUser AuthenticatedUser current,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate to) {
+        return stats.dailyScans(current.userId(), from, to);
     }
 
     @GetMapping("/campaign-scans")
-    public List<CampaignScanStat> campaignScans(@CurrentUser AuthenticatedUser current) {
-        return stats.campaignScans(current.userId());
+    public List<CampaignScanStat> campaignScans(
+            @CurrentUser AuthenticatedUser current,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate to) {
+        return stats.campaignScans(current.userId(), from, to);
     }
 }

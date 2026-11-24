@@ -66,8 +66,9 @@ public class RedirectService {
         ev.setQrCodeId(qr.getId());
         ev.setScannedAt(Instant.now());
         ev.setVisitorHash(visitorKeyHash);
-        // Pais/región/ciudad: no se geoipiza sin un servicio dedicado (REQ-MET-07: no inventar).
-        ev.setCountryCode(null);
+        // Pais aproximado por Accept-Language (REQ-MET-07: sin GeoIP dedicado, no inventar).
+        ev.setCountryCode(com.libreqr.util.ScanClassifier
+                .countryFromAcceptLanguage(request.getHeader("Accept-Language")));
         ev.setRegion(null);
         ev.setCity(null);
         ev.setDeviceType(classifier.deviceType(userAgent));

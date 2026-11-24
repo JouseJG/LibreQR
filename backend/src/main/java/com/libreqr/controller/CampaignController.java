@@ -3,12 +3,16 @@ package com.libreqr.controller;
 import com.libreqr.document.CampaignStatus;
 import com.libreqr.dto.CampaignMetricsResponse;
 import com.libreqr.dto.CampaignQrResponse;
+import com.libreqr.dto.CampaignStatsResponse;
+import com.libreqr.dto.DailyScanStat;
+import com.libreqr.dto.QrResponse;
 import com.libreqr.dto.CampaignResponse;
 import com.libreqr.dto.CampaignStatusRequest;
 import com.libreqr.dto.CampaignUpsertRequest;
 import com.libreqr.service.CampaignQrService;
 import com.libreqr.service.CampaignService;
 import com.libreqr.service.MetricsService;
+import com.libreqr.service.StatsService;
 import com.libreqr.security.AuthenticatedUser;
 import com.libreqr.security.CurrentUser;
 import jakarta.validation.Valid;
@@ -33,6 +37,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -49,12 +54,14 @@ public class CampaignController {
     private final CampaignService service;
     private final CampaignQrService qrLinks;
     private final MetricsService metrics;
+    private final StatsService stats;
 
     public CampaignController(CampaignService service, CampaignQrService qrLinks,
-                              MetricsService metrics) {
+                              MetricsService metrics, StatsService stats) {
         this.service = service;
         this.qrLinks = qrLinks;
         this.metrics = metrics;
+        this.stats = stats;
     }
 
     @PostMapping
@@ -123,6 +130,51 @@ public class CampaignController {
                                             @PathVariable UUID id) {
         service.get(current.userId(), id); // valida propiedad
         return qrLinks.list(id);
+    }
+
+    @GetMapping("/{id}/qrs/details")
+    public Page<QrResponse> linkedQrDetails(
+            @CurrentUser AuthenticatedUser current,
+            @PathVariable UUID id,
+            @RequestParam(required = false) String search,
+            @PageableDefault(size = 5, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        service.get(current.userId(), id); // valida propiedad
+        return qrLinks.details(current.userId(), id, pageable, search);
+    }
+
+    @GetMapping("/{id}/stats")
+    public CampaignStatsResponse stats(
+            @CurrentUser AuthenticatedUser current,
+            @PathVariable UUID id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        service.get(current.userId(), id); // valida propiedad
+        return stats.campaignStats(current.userId(), id, from, to);
+    }
+
+    /** Serie diaria del rango en CSV (descarga desde el perfil de campana). */
+    @GetMapping(value = "/{id}/stats/export", produces = "text/csv")
+    public ResponseEntity<String> exportStats(
+            @CurrentUser AuthenticatedUser current,
+            @PathVariable UUID id,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        service.get(current.userId(), id); // valida propiedad
+        CampaignStatsResponse data = stats.campaignStats(current.userId(), id, from, to);
+        String csv = StatsService.toCsv(data.dailySeries());
+        LocalDate first = data.dailySeries().isEmpty() ? LocalDate.now()
+                : data.dailySeries().get(0).date();
+        LocalDate last = data.dailySeries().isEmpty() ? LocalDate.now()
+                : data.dailySeries().get(data.dailySeries().size() - 1).date();
+        return ResponseEntity.ok()
+                .header("Content-Disposition",
+                        "attachment; filename=\"campana-%s-%s_a_%s.csv\"".formatted(id, first, last))
+                .body(csv);
     }
 
     @DeleteMapping("/{id}/qrs/{qrId}")

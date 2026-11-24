@@ -6,6 +6,11 @@ import { CampaignApiService } from '../../../../core/services/campaign-api.servi
 import { QrApiService } from '../../../../core/services/qr-api.service';
 import { StatsApiService } from '../../../../core/services/stats-api.service';
 import { LineChartComponent, LinePoint } from '../../../../shared/components/line-chart/line-chart.component';
+import {
+  DateRange,
+  DateRangeComponent,
+  formatRangeLabel,
+} from '../../../../shared/components/date-range/date-range.component';
 import { BarChartComponent, BarItem } from '../../../../shared/components/bar-chart/bar-chart.component';
 import { MetricCardComponent } from '../../../../shared/components/metric-card/metric-card.component';
 import { PanelComponent } from '../../../../shared/components/panel/panel.component';
@@ -34,6 +39,7 @@ const RECENT_QRS = 5;
     MetricCardComponent,
     LineChartComponent,
     BarChartComponent,
+    DateRangeComponent,
     PanelComponent,
     StatusBadgeComponent,
     QrThumbComponent,
@@ -51,6 +57,10 @@ const RECENT_QRS = 5;
           <ui-button variant="primary" routerLink="/qr/new">+ Crear QR</ui-button>
         </div>
       </header>
+
+      <div class="range-bar">
+        <app-date-range [range]="dateRange()" (rangeChange)="onRangeChange($event)" />
+      </div>
 
       <div class="metric-cards">
         <metric-card
@@ -78,7 +88,7 @@ const RECENT_QRS = 5;
           <div panel-header class="panel-header">
             <div>
               <h2>Tendencia de escaneos</h2>
-              <p class="panel-sub">Escaneos diarios · {{ monthLabel }}</p>
+              <p class="panel-sub">Escaneos diarios · {{ rangeLabel }}</p>
             </div>
             <span class="legend"><span class="legend-dot" aria-hidden="true"></span>Escaneos</span>
           </div>
@@ -219,35 +229,63 @@ export class DashboardComponent {
   protected readonly recentCampaigns = signal<Campaign[]>([]);
   protected readonly recentQrs = signal<QrItem[]>([]);
 
-  /** Nombre del mes en curso ("junio 2026") para la grafica de tendencia. */
-  protected readonly monthLabel = new Intl.DateTimeFormat('es-ES', {
-    month: 'long',
-    year: 'numeric',
-  }).format(new Date());
+  /** Rango de medicion: por defecto, primer y ultimo dia del mes actual. */
+  private readonly now = new Date();
+  protected readonly dateRange = signal<DateRange>({
+    from: isoDate(firstDayOfMonth(this.now)),
+    to: isoDate(this.now),
+  });
 
-  /** Nombre del mes anterior en castellano, para la comparativa ("vs mayo"). */
-  private readonly previousMonthName = new Intl.DateTimeFormat('es-ES', { month: 'long' })
-    .format(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 15));
+  /** Etiqueta del rango para el subtitulo de la grafica. */
+  protected readonly rangeLabel = computed(() => {
+    const { from, to } = this.dateRange();
+    const fromMonth = new Date(`${from}T00:00:00`);
+    const toMonth = new Date(`${to}T00:00:00`);
+    if (fromMonth.getFullYear() === toMonth.getFullYear() && fromMonth.getMonth() === toMonth.getMonth()) {
+      return new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric' }).format(fromMonth);
+    }
+    return formatRangeLabel(from, to);
+  });
+
+  /** Etiqueta del periodo anterior (para las comparativas "vs junio"). */
+  private readonly comparisonLabel = computed(() => {
+    const from = new Date(`${this.dateRange().from}T00:00:00`);
+    const dayBefore = new Date(from);
+    dayBefore.setDate(dayBefore.getDate() - 1);
+    const name = new Intl.DateTimeFormat('es-ES', { month: 'long' }).format(dayBefore);
+    const sameYear = dayBefore.getFullYear() === this.now.getFullYear();
+    return sameYear ? name : `${name} ${dayBefore.getFullYear()}`;
+  });
 
   constructor() {
-    this.statsApi.summary().subscribe({
-      next: (stats) => this.stats.set(stats),
-      error: () => undefined,
-    });
-    this.statsApi.dailyScans().subscribe({
-      next: (points) => this.dailyScans.set(points),
-      error: () => undefined,
-    });
-    this.statsApi.campaignScans().subscribe({
-      next: (rows) => this.campaignScans.set(rows),
-      error: () => undefined,
-    });
+    this.loadStats();
     this.campaignApi.list(0, RECENT_CAMPAIGNS).subscribe({
       next: (page) => this.recentCampaigns.set(page.content),
       error: () => undefined,
     });
     this.qrApi.list(0, RECENT_QRS).subscribe({
       next: (page) => this.recentQrs.set(page.content),
+      error: () => undefined,
+    });
+  }
+
+  protected onRangeChange(range: DateRange): void {
+    this.dateRange.set(range);
+    this.loadStats();
+  }
+
+  private loadStats(): void {
+    const range = this.dateRange();
+    this.statsApi.summary(range).subscribe({
+      next: (stats) => this.stats.set(stats),
+      error: () => undefined,
+    });
+    this.statsApi.dailyScans(range).subscribe({
+      next: (points) => this.dailyScans.set(points),
+      error: () => undefined,
+    });
+    this.statsApi.campaignScans(range).subscribe({
+      next: (rows) => this.campaignScans.set(rows),
       error: () => undefined,
     });
   }
@@ -310,14 +348,14 @@ export class DashboardComponent {
     if (previous === 0) {
       // sin base de comparacion: se muestra como crecimiento maximo si hay actividad
       const sign = current > 0 ? '+100' : '0';
-      return `${sign}% vs ${this.previousMonthName}`;
+      return `${sign}% vs ${this.comparisonLabel()}`;
     }
     const change = ((current - previous) / previous) * 100;
     const formatted = new Intl.NumberFormat('es-ES', {
       minimumFractionDigits: 1,
       maximumFractionDigits: 1,
     }).format(Math.abs(change));
-    return `${change >= 0 ? '+' : '-'}${formatted}% vs ${this.previousMonthName}`;
+    return `${change >= 0 ? '+' : '-'}${formatted}% vs ${this.comparisonLabel()}`;
   }
 
   protected monthTone(current?: number, previous?: number): 'success' | 'down' | 'default' {
@@ -336,4 +374,15 @@ export class DashboardComponent {
     const stats = this.stats();
     return stats ? `${stats.totalCampaigns} en total` : undefined;
   }
+}
+
+function isoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function firstDayOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
 }

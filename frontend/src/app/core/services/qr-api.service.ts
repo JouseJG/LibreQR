@@ -2,6 +2,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { API_BASE_URL } from '../config/api.config';
+import { QrStats } from '../models/api.models';
 import {
   QrItem,
   QrMetricsResponse,
@@ -69,7 +70,25 @@ export class QrApiService {
     return this.http.delete<void>(`${API_BASE_URL}/qr/${id}`);
   }
 
-  metrics(id: string): Observable<QrMetricsResponse> {
-    return this.http.get<QrMetricsResponse>(`${API_BASE_URL}/qr/${id}/metrics`);
+  metrics(id: string, from?: string, to?: string): Observable<QrMetricsResponse> {
+    let params = new HttpParams();
+    if (from) {
+      params = params.set('from', from);
+    }
+    if (to) {
+      params = params.set('to', to);
+    }
+    return this.http.get<QrMetricsResponse>(`${API_BASE_URL}/qr/${id}/metrics`, { params });
+  }
+
+  /** Estadisticas del perfil de QR (resumen + serie + dispositivos + paises) por rango. */
+  stats(id: string, from: string, to: string): Observable<QrStats> {
+    const params = new HttpParams().set('from', from).set('to', to);
+    return this.http.get<QrStats>(`${API_BASE_URL}/qr/${id}/stats`, { params });
+  }
+
+  /** URL de descarga CSV (serie diaria del rango); la sesion viaja en la cookie. */
+  statsExportUrl(id: string, from: string, to: string): string {
+    return `${API_BASE_URL}/qr/${id}/stats/export?from=${from}&to=${to}`;
   }
 }

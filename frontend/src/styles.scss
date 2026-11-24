@@ -155,3 +155,11 @@ a:focus-visible {
 .table-card {
   @include data-table;
 }
+
+/* modo embebido: el marco lo pone el contenedor padre (app-data-table) */
+.table-card.table-card-bare {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}

@@ -37,7 +37,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     }
 
     .ui-button--primary {
-      background: $color-primary-hover;
+      background: $color-primary;
       color: white;
       border: none;
      // // box-shadow: $shadow-button;
@@ -48,9 +48,13 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     }
 
     .ui-button--secondary {
-      background: #e7f8f7;
+      background: #fff;
       color: $color-primary;
       border: 1px solid rgba(13, 153, 149, 0.3);
+    }
+
+    .ui-button--secondary:hover:not(:disabled) {
+      background: $color-primary-soft;
     }
 
     .ui-button--ghost {

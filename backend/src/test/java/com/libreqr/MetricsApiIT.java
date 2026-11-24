@@ -209,4 +209,37 @@ class MetricsApiIT {
                 .andExpect(jsonPath("$.busiestDay").doesNotExist())
                 .andExpect(jsonPath("$.firstScanAt").doesNotExist());
     }
+
+    @Test
+    @Order(7)
+    void estadisticasDeQrYExport() throws Exception {
+        String id = createQr("qr-estadisticas");
+        String s = slugOf(id);
+        purge(UUID.fromString(id));
+
+        mockMvc.perform(get("/r/" + s).header("User-Agent", MOBILE_UA)
+                        .header("Accept-Language", "de-DE,de;q=0.9"))
+                .andExpect(status().isFound());
+        mockMvc.perform(get("/r/" + s)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                        .header("Accept-Language", "en-GB,en;q=0.9"))
+                .andExpect(status().isFound());
+        mockMvc.perform(get("/r/" + s).header("User-Agent", BOT_UA))
+                .andExpect(status().isFound());
+
+        mockMvc.perform(get("/api/qr/" + id + "/stats").header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scans").value(2))
+                .andExpect(jsonPath("$.botScans").value(1))
+                .andExpect(jsonPath("$.scansAllTime").value(2))
+                .andExpect(jsonPath("$.deviceTypes.length()").value(2))
+                .andExpect(jsonPath("$.countries.length()").value(2));
+
+        String csv = mockMvc.perform(get("/api/qr/" + id + "/stats/export")
+                        .header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(csv.startsWith("fecha,escaneos"));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains(",2"));
+    }
 }

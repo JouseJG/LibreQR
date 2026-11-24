@@ -83,6 +83,35 @@ export type CampaignScan = {
   scans: number;
 };
 
+/** Agrupacion clave -> escaneos (dispositivo o pais). */
+export type CategoryCount = {
+  key: string;
+  scans: number;
+};
+
+/** Espejo de `QrStatsResponse` (perfil de QR, por rango). */
+export type QrStats = {
+  scans: number;
+  uniqueVisitors: number;
+  scansAllTime: number;
+  botScans: number;
+  dailySeries: DailyScanPoint[];
+  deviceTypes: CategoryCount[];
+  countries: CategoryCount[];
+};
+
+/** Espejo de `CampaignStatsResponse` (perfil de campana, por rango). */
+export type CampaignStats = {
+  scans: number;
+  uniqueVisitors: number;
+  scansAllTime: number;
+  activeQrs: number;
+  totalQrs: number;
+  dailySeries: DailyScanPoint[];
+  deviceTypes: CategoryCount[];
+  countries: CategoryCount[];
+};
+
 /** Extrae un mensaje legible de un error RFC 7807. */
 export function problemMessage(error: unknown, fallback = 'Error inesperado'): string {
   const detail = (error as { error?: ApiProblem | null })?.error?.detail;

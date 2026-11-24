@@ -103,6 +103,30 @@ class StatsSummaryIT {
                 .andExpect(jsonPath("$[0].scans").value(2));
     }
 
+    @Test
+    @Order(4)
+    void resumenConRangoExplicito() throws Exception {
+        java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneOffset.UTC);
+        String from = today.withDayOfMonth(1).toString();
+        String to = today.toString();
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/stats/summary")
+                        .header("X-User-Id", OWNER)
+                        .param("from", from).param("to", to))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scansCurrentMonth").value(2));
+
+        // rango sin eventos (ayer mismo dia si el mes ya tiene >1 dia, o mes anterior)
+        String far = today.minusMonths(2).toString();
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/api/stats/summary")
+                        .header("X-User-Id", OWNER)
+                        .param("from", far).param("to", far))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scansCurrentMonth").value(0));
+    }
+
     private String crearQr(String name) throws Exception {
         return JsonPath.read(mockMvc.perform(post("/api/qr")
                         .header("X-User-Id", OWNER)

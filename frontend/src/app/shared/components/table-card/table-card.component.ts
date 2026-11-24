@@ -15,7 +15,7 @@ import { PaginationComponent } from '../pagination/pagination.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [PaginationComponent],
   template: `
-    <div class="table-card">
+    <div class="table-card" [class.table-card-bare]="!framed()">
       @if (loading()) {
         <p class="table-state" role="status">{{ loadingText() }}</p>
       } @else if (error()) {
@@ -69,6 +69,9 @@ import { PaginationComponent } from '../pagination/pagination.component';
   `,
 })
 export class TableCardComponent {
+  /** false = sin marco propio (lo aporta un contenedor externo, p. ej. app-data-table). */
+  readonly framed = input(true);
+
   readonly loading = input(false);
   readonly loadingText = input('Cargando…');
   readonly error = input('');

@@ -271,4 +271,99 @@ class CampaignApiIT {
                         .header("X-User-Id", OWNER))
                 .andExpect(status().isConflict());
     }
+
+    @Test
+    @Order(13)
+    void detalleQrsAsociadosConBusquedaYOrden() throws Exception {
+        MvcResult campRes = mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Filtro tabla\",\"description\":\"d\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String camp = JsonPath.read(campRes.getResponse().getContentAsString(), "$.id");
+
+        for (String name : new String[]{"Alfa tabla", "Beta tabla"}) {
+            mockMvc.perform(post("/api/qr")
+                            .header("X-User-Id", OWNER)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(("{\"type\":\"url\",\"name\":\"" + name
+                                    + "\",\"payload\":\"https://t.example\",\"campaignId\":\""
+                                    + camp + "\"}")))
+                    .andExpect(status().isCreated());
+        }
+
+        mockMvc.perform(get("/api/campaigns/" + camp + "/qrs/details")
+                        .header("X-User-Id", OWNER).param("sort", "name,asc"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2))
+                .andExpect(jsonPath("$.content[0].name").value("Alfa tabla"));
+
+        mockMvc.perform(get("/api/campaigns/" + camp + "/qrs/details")
+                        .header("X-User-Id", OWNER).param("search", "Beta"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Beta tabla"));
+
+        mockMvc.perform(get("/api/campaigns/" + camp + "/qrs/details")
+                        .header("X-User-Id", OWNER).param("page", "1").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1));
+    }
+
+    @Test
+    @Order(14)
+    void estadisticasDeCampanaYExport() throws Exception {
+        MvcResult campRes = mockMvc.perform(post("/api/campaigns")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\":stats\",\"description\":\"d\"}"))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String camp = JsonPath.read(campRes.getResponse().getContentAsString(), "$.id");
+
+        MvcResult qrRes = mockMvc.perform(post("/api/qr")
+                        .header("X-User-Id", OWNER)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(("{\"type\":\"url\",\"name\":\":stats qr\","
+                                + "\"payload\":\"https://stats.example\",\"campaignId\":\""
+                                + camp + "\"}")))
+                .andExpect(status().isCreated())
+                .andReturn();
+        String slug = JsonPath.read(qrRes.getResponse().getContentAsString(), "$.slug");
+
+        // dos escaneos moviles desde PT y uno de escritorio desde ES
+        mockMvc.perform(get("/r/" + slug)
+                        .header("User-Agent", "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)"
+                                + " AppleWebKit/605.1.15 Mobile/15E148")
+                        .header("Accept-Language", "pt-PT,pt;q=0.9"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/r/" + slug)
+                        .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) Mobile")
+                        .header("Accept-Language", "pt-PT"))
+                .andExpect(status().is3xxRedirection());
+        mockMvc.perform(get("/r/" + slug)
+                        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                        .header("Accept-Language", "es-ES,es;q=0.9"))
+                .andExpect(status().is3xxRedirection());
+
+        mockMvc.perform(get("/api/campaigns/" + camp + "/stats").header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scans").value(3))
+                .andExpect(jsonPath("$.scansAllTime").value(3))
+                .andExpect(jsonPath("$.activeQrs").value(1))
+                .andExpect(jsonPath("$.totalQrs").value(1))
+                .andExpect(jsonPath("$.deviceTypes[0].key").value("mobile"))
+                .andExpect(jsonPath("$.deviceTypes[0].scans").value(2))
+                .andExpect(jsonPath("$.countries[0].key").value("PT"))
+                .andExpect(jsonPath("$.countries[0].scans").value(2))
+                .andExpect(jsonPath("$.dailySeries.length()").value(greaterThanOrEqualTo(1)));
+
+        String csv = mockMvc.perform(get("/api/campaigns/" + camp + "/stats/export")
+                        .header("X-User-Id", OWNER))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(csv.startsWith("fecha,escaneos"));
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains(",3"));
+    }
 }

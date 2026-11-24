@@ -73,6 +73,30 @@ public class ScanClassifier {
         return null;
     }
 
+    /**
+     * Pais aproximado a partir del subtag de region del Accept-Language (REQ-MET-07:
+     * aproximacion honesta, sin servicio GeoIP dedicado; null si no se deduce).
+     */
+    public static String countryFromAcceptLanguage(String header) {
+        if (header == null || header.isBlank()) {
+            return null;
+        }
+        String first = header.split(",")[0].trim().split(";")[0].trim();
+        String[] parts = first.split("[-_]");
+        if (parts.length > 1 && parts[1].length() == 2) {
+            return parts[1].toUpperCase(Locale.ROOT);
+        }
+        return switch (parts[0].toLowerCase(Locale.ROOT)) {
+            case "es", "ca", "gl" -> "ES";
+            case "pt" -> "PT";
+            case "fr" -> "FR";
+            case "de" -> "DE";
+            case "it" -> "IT";
+            case "en" -> "GB";
+            default -> null;
+        };
+    }
+
     /** Dia UTC en formato yyyy-MM-dd (para agrupar por dia, REQ-MET-06). */
     public static String dayKey(Instant instant) {
         return DateTimeFormatter.ofPattern("yyyy-MM-dd")

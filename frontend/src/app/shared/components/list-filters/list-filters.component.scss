@@ -11,6 +11,14 @@
   // box-shadow: $shadow-soft;
 }
 
+/* modo embebido: sin marco propio, solo separador inferior */
+.toolbar-panel.toolbar-bare {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid $color-border;
+}
+
 .toolbar-controls {
   display: flex;
   flex-wrap: wrap;
